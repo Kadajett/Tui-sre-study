@@ -4,29 +4,36 @@ A conversational SRE teacher for an experienced software engineer learning opera
 
 ![SRE Trainer terminal interface](preview.png)
 
-## Run locally
+## Choose where to run
+
+This is a terminal application. You can run it on your own computer or connect to a server over SSH. Tailscale and a Kubernetes cluster are optional.
+
+| Option | What you need | Available practice |
+| --- | --- | --- |
+| Local Docker Compose | Docker Engine with Compose and Linux containers | Teaching, Linux commands, and Docker incidents; add a cluster for Kubernetes labs |
+| Remote server or VM | A Linux Docker host and SSH access | The same features, with progress and lab resources kept on that host |
+| Teaching only | The trainer container, without the lab runner | Conversation, reinforcement, and local Linux command courses |
+| Run from source | Rust and the Linux command dependencies | Development and local teaching; real container incidents need the separate runner |
+
+See [hosting options](docs/hosting.md) for commands, prerequisites, persistence, and connecting a Kubernetes cluster. The full lab-runner image currently targets Linux amd64; other client machines can connect to a compatible remote host.
+
+### Quick start: local Docker Compose
 
 ```bash
 git clone https://github.com/Kadajett/Tui-sre-study.git
 cd Tui-sre-study
 cp .env.example .env
-# Put your OpenRouter key and reference URLs in .env.
+# Add your own OpenRouter key to .env. Reference services are optional.
+mkdir -p .credentials
 docker compose build
-# For Kubernetes labs, follow docs/real-labs.md to configure scoped access.
 docker compose run --rm trainer
 ```
 
-The key stays in `.env`, which Git and Docker exclude. The example file contains no key. Docker Compose supplies the private environment at runtime.
+Your key stays in `.env`, which Git and Docker exclude. Leave `DEVDOCS_URL` and `SEARXNG_URL` blank unless you run compatible reference services. No personal server or tailnet address is required. Docker practice works immediately; follow [Kubernetes lab setup](docs/real-labs.md) before starting Kubernetes exercises.
 
-## Start on Nucbox
+To update, exit the trainer, pull the new source, rebuild, and launch again from the same project directory. The named progress volume and your private `.env` persist. See [updates and moving hosts](docs/hosting.md#updates-and-moving-hosts).
 
-```bash
-tailscale ssh kadajett@nucbox
-cd ~/Tui-sre-study
-docker compose run --rm trainer
-```
-
-If an older trainer is already open, exit it and launch again to use the updated image. Existing progress and the private `.env` remain on Nucbox.
+## Learning path
 
 Brand-new learning profiles choose a random **unlearned beginner command** from the easiest unfinished level. Restarts restore the same conversation and topic, including completed topics. `/next` chooses another eligible topic after the current course is complete. There are 60 topics in four levels:
 
@@ -92,16 +99,19 @@ The 60 topics cover Linux investigation, networking, Kubernetes, cloud compute/s
 
 Six beginner courses run actual commands (`du`, `grep`, `jq`, `chmod`, `ps`, `ip`). Kubernetes and Docker each have five guided steps using **real commands and live output** from their practice environments. Start `/lab kubernetes` or `/lab docker` once, then type each command in the input. These courses require successful execution of the current step and a meaningful explanation before advancement. Worked examples are illustrations; unavailable runners produce an error, never substituted output. Other concepts use guided discussion, with live incidents after their prerequisites are learned. `du` keeps a practice tree for comparisons within a session; other local Linux fixtures are disposable.
 
-Opening explanations use the prepared lesson material. During conversation, Mercury can discover document collections, search indexes, read pages from your DevDocs, and search via your SearXNG. Retrieved sources are shown in its answer. Catalog entries are verified through index/page access; missing pages or failed searches are reported.
+Opening explanations use the prepared lesson material. When reference URLs are configured, Mercury can discover document collections, search indexes, read pages from your DevDocs, and search via your SearXNG. Retrieved sources are shown in its answer. Catalog entries are verified through index/page access; missing pages or failed searches are reported.
 
 Configuration comes from the private, ignored `.env`:
 
 ```dotenv
 OPENROUTER_API_KEY=your-key
 OPENROUTER_MODEL=inception/mercury-2.5
-DEVDOCS_URL=https://devdocs.tailf93a13.ts.net
-SEARXNG_URL=https://searxng.tailf93a13.ts.net
+# Optional: use your own service URLs, or leave blank.
+DEVDOCS_URL=
+SEARXNG_URL=
 ```
+
+Blank reference URLs disable their lookup tools. Configured URLs may use HTTPS or HTTP for a trusted local network; they must be reachable from the trainer container. No credentials, query strings, or fragments are accepted in service URLs.
 
 The configured key is excluded from the image and lab subprocesses. Your messages, command output, recent conversation and due-topic notes are sent to OpenRouter. Selected search queries go through SearXNG, and retrieved excerpts may be sent to the teacher. Reference tools don't receive the API key or execute shell commands.
 
@@ -121,7 +131,7 @@ See [real-lab setup and boundaries](docs/real-labs.md) and the [senior frontend 
 
 The trainer container runs an unprivileged user with dropped capabilities, a read-only root and temporary `/tmp`. The `du` runner accepts a bounded set of flags and known fixture paths, clears its environment, never invokes a shell, and has a four-second timeout. The new beginner courses additionally restrict execution to their prepared command variants. Legacy Linux runners retain their executable allowlists and should be used inside the container. Do not mount host paths or cloud credentials into it.
 
-Progress is in the existing `sre-progress` volume. Avoid `docker compose down -v` unless you intend to delete it. A pre-upgrade source archive and image tag are retained on Nucbox.
+Progress is in the existing `sre-progress` volume. Avoid `docker compose down -v` unless you intend to delete it. Back up your progress volume before moving or upgrading hosts.
 
 ```bash
 cargo fmt --check
@@ -131,7 +141,7 @@ docker compose build
 docker compose run --rm -T trainer --stats
 ```
 
-The Docker build runs the tests and uses `Cargo.lock`. Workstation builds are transferred to Nucbox to avoid leaving compiler caches on its nearly full disk.
+The Docker build runs the tests and uses `Cargo.lock`. You can build on the Docker host or transfer images built for its platform from another machine; see the hosting guide.
 
 Optional live diagnostics (teacher/coach checks make a billable OpenRouter request):
 

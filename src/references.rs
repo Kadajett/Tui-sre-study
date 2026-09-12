@@ -53,13 +53,38 @@ struct SearchResult {
     content: String,
 }
 
-pub fn definitions() -> Value {
-    json!([
+pub fn definitions() -> Vec<Value> {
+    let definitions = json!([
         {"type":"function","function":{"name":"list_docs","description":"Find document collections in the user's DevDocs catalog. Use an empty query to list SRE-relevant collections, or a topic/name. Catalog entries are not proof that every page is installed; search_docs verifies its index.","parameters":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"],"additionalProperties":false}}},
         {"type":"function","function":{"name":"search_docs","description":"Search entry titles in a DevDocs collection. Use a slug returned by list_docs, such as bash or kubernetes. Returns exact paths for read_doc.","parameters":{"type":"object","properties":{"doc":{"type":"string"},"query":{"type":"string"}},"required":["doc","query"],"additionalProperties":false}}},
         {"type":"function","function":{"name":"read_doc","description":"Read a documentation page from the user's DevDocs. Use the doc slug and path returned by search_docs.","parameters":{"type":"object","properties":{"doc":{"type":"string"},"path":{"type":"string"}},"required":["doc","path"],"additionalProperties":false}}},
         {"type":"function","function":{"name":"search_web","description":"Search through the user's private SearXNG service. Prefer official primary sources using site: filters. Never search secrets or private infrastructure data. Results contain snippets, not full verified pages.","parameters":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"],"additionalProperties":false}}}
-    ])
+    ]);
+    selected_definitions(
+        definitions,
+        configured("DEVDOCS_URL"),
+        configured("SEARXNG_URL"),
+    )
+}
+
+fn configured(variable: &str) -> bool {
+    env::var(variable).is_ok_and(|value| !value.trim().is_empty())
+}
+
+fn selected_definitions(definitions: Value, docs: bool, search: bool) -> Vec<Value> {
+    definitions
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|tool| {
+            if tool["function"]["name"] == "search_web" {
+                search
+            } else {
+                docs
+            }
+        })
+        .cloned()
+        .collect()
 }
 
 pub fn lookup(name: &str, arguments: &str) -> Result<Reference> {
@@ -78,15 +103,20 @@ pub fn lookup(name: &str, arguments: &str) -> Result<Reference> {
     }
 }
 
-fn base(variable: &str, fallback: &str) -> Result<String> {
-    let base = env::var(variable).unwrap_or_else(|_| fallback.to_owned());
-    let url = reqwest::Url::parse(&base)?;
+fn base(variable: &str) -> Result<String> {
+    let value = env::var(variable).unwrap_or_default();
     ensure!(
-        url.scheme() == "https"
-            && url
-                .host_str()
-                .is_some_and(|host| host.ends_with(".tailf93a13.ts.net")),
-        "Reference services must use your Tailscale HTTPS domain"
+        !value.trim().is_empty(),
+        "Reference service is not configured. Set {variable} to your service URL to enable it"
+    );
+    parse_base(value.trim()).with_context(|| format!("Invalid {variable}"))
+}
+
+fn parse_base(base: &str) -> Result<String> {
+    let url = reqwest::Url::parse(base)?;
+    ensure!(
+        matches!(url.scheme(), "http" | "https") && url.host_str().is_some(),
+        "Reference services must use an HTTP or HTTPS URL"
     );
     ensure!(
         url.username().is_empty()
@@ -95,11 +125,11 @@ fn base(variable: &str, fallback: &str) -> Result<String> {
             && url.fragment().is_none(),
         "Reference URL cannot contain credentials, a query or fragment"
     );
-    Ok(base.trim_end_matches('/').to_owned())
+    Ok(url.as_str().trim_end_matches('/').to_owned())
 }
 
 fn docs_base() -> Result<String> {
-    base("DEVDOCS_URL", "https://devdocs.tailf93a13.ts.net")
+    base("DEVDOCS_URL")
 }
 
 fn fetch(client: &Client, url: &str) -> Result<String> {
@@ -216,7 +246,7 @@ fn search_web(client: &Client, query: Query) -> Result<Reference> {
         !query.query.trim().is_empty() && query.query.len() <= 500,
         "Search query must be 1–500 characters"
     );
-    let base = base("SEARXNG_URL", "https://searxng.tailf93a13.ts.net")?;
+    let base = base("SEARXNG_URL")?;
     let mut url = reqwest::Url::parse(&format!("{base}/search"))?;
     url.query_pairs_mut()
         .append_pair("q", &query.query)
@@ -298,3 +328,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "reference_tests.rs"]
+mod hosting_tests;

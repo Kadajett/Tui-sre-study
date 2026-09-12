@@ -200,7 +200,10 @@ fn request(
         body["response_format"] = json!({"type":"json_object"});
     }
     if mode.tools {
-        body["tools"] = crate::references::definitions();
+        let tools = crate::references::definitions();
+        if !tools.is_empty() {
+            body["tools"] = json!(tools);
+        }
     }
     let response = client
         .post("https://openrouter.ai/api/v1/chat/completions")

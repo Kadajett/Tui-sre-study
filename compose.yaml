@@ -9,8 +9,8 @@ services:
     environment:
       SRE_LAB_URL: http://lab-runner:8766
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
-      DEVDOCS_URL: ${DEVDOCS_URL:-https://devdocs.tailf93a13.ts.net}
-      SEARXNG_URL: ${SEARXNG_URL:-https://searxng.tailf93a13.ts.net}
+      DEVDOCS_URL: ${DEVDOCS_URL:-}
+      SEARXNG_URL: ${SEARXNG_URL:-}
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-inception/mercury-2.5}
     volumes:
       - sre-progress:/data
