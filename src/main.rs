@@ -1,3 +1,4 @@
+mod chat_store;
 mod coach;
 mod course_store;
 mod diagnostics;
@@ -9,6 +10,7 @@ mod guided_terminal;
 mod guided_tests;
 mod guided_ui;
 mod references;
+mod reinforcement_session;
 mod roadmap;
 mod teaching;
 mod teaching_avatar;
@@ -22,6 +24,9 @@ mod teaching_levels;
 mod teaching_markdown;
 mod teaching_messages;
 mod teaching_palette;
+mod teaching_persistence;
+#[cfg(test)]
+mod teaching_persistence_tests;
 mod teaching_protocol;
 mod teaching_store;
 mod teaching_syntax;

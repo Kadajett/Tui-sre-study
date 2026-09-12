@@ -14,9 +14,11 @@ pub fn run(store: Store, lessons: Vec<Lesson>, deck: Option<&str>) -> Result<()>
     let result = execute!(std::io::stdout(), EnableMouseCapture)
         .map_err(anyhow::Error::from)
         .and_then(|()| run_loop(&mut terminal, &mut app));
+    let saved = app.checkpoint();
     let cleanup = execute!(std::io::stdout(), DisableMouseCapture);
     ratatui::restore();
     result?;
+    saved?;
     cleanup?;
     println!("Learning progress saved. Come back and we'll continue the conversation.");
     Ok(())
@@ -44,7 +46,7 @@ pub(super) fn handle_event(app: &mut Teacher, event: Event) -> Result<()> {
         Event::Mouse(mouse) => mouse_input(app, mouse),
         _ => {}
     }
-    Ok(())
+    app.checkpoint()
 }
 
 fn mouse_input(app: &mut Teacher, mouse: event::MouseEvent) {

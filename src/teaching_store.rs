@@ -31,6 +31,7 @@ impl Store {
             ready INTEGER NOT NULL DEFAULT 0, practice_offered INTEGER NOT NULL DEFAULT 0,
             learned_at TEXT, pending_review TEXT, notes TEXT NOT NULL DEFAULT '');
             CREATE TABLE IF NOT EXISTS teaching_position(scope TEXT PRIMARY KEY, topic_id TEXT NOT NULL);")?;
+        self.prepare_chat()?;
         let old = self.course_progress()?;
         if old.completed_at.is_some() || old.step > 0 || old.ready {
             self.db.execute("INSERT OR IGNORE INTO teaching_topics(topic_id,step,ready,learned_at,notes) VALUES('linux-du-1',?1,?2,?3,'Progress carried from the previous guided du course')", params![old.step.min(4),old.ready || old.step>4,old.completed_at])?;

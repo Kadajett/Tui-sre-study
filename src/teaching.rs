@@ -5,7 +5,7 @@ use anyhow::{ensure, Result};
 use std::collections::VecDeque;
 use tempfile::TempDir;
 
-#[derive(Clone)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub enum TurnKind {
     Introduction,
     Conversation,
@@ -13,7 +13,7 @@ pub enum TurnKind {
     Lab(bool),
 }
 
-#[derive(Clone)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct Turn {
     pub text: String,
     pub kind: TurnKind,
@@ -41,6 +41,9 @@ pub struct Teacher {
     pub(super) queue: VecDeque<Turn>,
     pub(super) in_flight: Option<Turn>,
     pub(super) fixture: TempDir,
+    pub(super) saved_messages: usize,
+    pub(super) last_checkpoint: String,
+    pub(super) review_session: Option<crate::reinforcement_session::ReviewSession>,
 }
 
 impl Teacher {
@@ -83,8 +86,11 @@ impl Teacher {
             queue: VecDeque::new(),
             in_flight: None,
             fixture,
+            saved_messages: 0,
+            last_checkpoint: String::new(),
+            review_session: None,
         };
-        app.open_topic()?;
+        app.restore_or_start()?;
         Ok(app)
     }
 
@@ -94,35 +100,18 @@ impl Teacher {
 
     pub fn say(&mut self, who: &str, text: &str) {
         self.transcript.push(format!("{who}\n{text}"));
-        if self.transcript.len() > 60 {
-            self.transcript.remove(0);
-        }
-    }
-
-    fn open_topic(&mut self) -> Result<()> {
-        self.store
-            .set_teaching_position(&self.scope, &self.lesson().id)?;
-        self.transcript.clear();
-        for message in self.store.teaching_history(&self.lesson().id)? {
-            let who = if message["role"] == "user" {
-                "You"
-            } else {
-                "Mercury"
-            };
-            self.say(who, message["content"].as_str().unwrap_or(""));
-        }
-        self.say(
-            "Let's learn",
-            &curriculum::introduction(self.lesson(), self.progress.step),
-        );
-        if self.progress.learned_at.is_some() {
-            self.say("Coach", "We've already worked through this topic. We can revisit it conversationally, or /next introduces the next topic.");
-        }
-        self.queue.push_back(Turn { text: "Open or resume this topic. Teach one concept with a concrete worked example. Do not ask a quiz or review question on this opening turn.".into(), kind: TurnKind::Introduction, can_assess: false, review_for: None, output: String::new(), lab_topic: None });
-        Ok(())
     }
 
     pub fn submit(&mut self, text: &str) -> Result<()> {
+        if !text.trim().is_empty() {
+            self.touch_review_session(chrono::Utc::now())?;
+        }
+        let result = self.submit_inner(text);
+        self.checkpoint()?;
+        result
+    }
+
+    fn submit_inner(&mut self, text: &str) -> Result<()> {
         let text = text.trim();
         if text.is_empty() {
             return Ok(());
@@ -278,6 +267,7 @@ impl Teacher {
     fn begin_new_context(&mut self) {
         self.view = crate::teaching_view::ReadingView::default();
         self.generation += 1;
+        self.in_flight = None;
         self.queue.clear();
         self.output.clear();
     }

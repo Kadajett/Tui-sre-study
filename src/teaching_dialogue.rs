@@ -12,14 +12,7 @@ impl Teacher {
         if !self.online {
             return Ok(());
         }
-        if let Some(reply) = self.coach.poll() {
-            let turn = self.in_flight.take();
-            if reply.generation == self.generation {
-                if let Some(turn) = turn {
-                    self.receive(reply.text, &turn)?;
-                }
-            }
-        }
+        self.receive_pending()?;
         if self.coach.busy() {
             return Ok(());
         }
@@ -28,8 +21,26 @@ impl Teacher {
         };
         let prompt = self.context(&turn)?;
         let history = self.store.teaching_history(&self.lesson().id)?;
+        self.in_flight = Some(turn.clone());
+        if let Err(error) = self.checkpoint() {
+            self.in_flight = None;
+            self.queue.push_front(turn);
+            return Err(error);
+        }
         self.coach.teach(self.generation, prompt, history);
-        self.in_flight = Some(turn);
+        Ok(())
+    }
+
+    fn receive_pending(&mut self) -> Result<()> {
+        if let Some(reply) = self.coach.poll() {
+            let turn = self.in_flight.take();
+            if reply.generation == self.generation {
+                if let Some(turn) = turn {
+                    self.receive(reply.text, &turn)?;
+                    self.checkpoint()?;
+                }
+            }
+        }
         Ok(())
     }
 
@@ -51,11 +62,11 @@ impl Teacher {
             TurnKind::Lab(_) => "explain_actual_command_output",
         };
         Ok(json!({
-            "current_topic":{"id":self.lesson().id,"title":curriculum::title(self.lesson()),"teaching_material":curriculum::introduction(self.lesson(),self.progress.step),"practice_goal":curriculum::practice_goal(self.lesson(), self.progress.step),"step":self.progress.step+1,"step_count":curriculum::step_count(self.lesson()),"practice_mode":self.lesson().kind,"already_learned":self.progress.learned_at.is_some()},
+            "current_topic":{"id":self.lesson().id,"title":curriculum::title(self.lesson()),"teaching_material":curriculum::introduction(self.lesson(),self.progress.step),"practice_goal":curriculum::practice_goal(self.lesson(), self.progress.step),"step":self.progress.step+1,"step_count":curriculum::step_count(self.lesson()),"practice_mode":self.lesson().kind,"step_practiced":self.progress.ready,"already_learned":self.progress.learned_at.is_some()},
             "intent":intent,"learner_message":turn.text,"can_assess_current_practice":turn.can_assess,
             "actual_command_output":turn.output,"command_topic":turn.lab_topic,
             "verified_command_success":match turn.kind {TurnKind::Lab(passed)=>Some(passed),_=>None},
-            "pending_review":turn.review_for,"due_learned_context":due,
+            "pending_review":turn.review_for,"due_learned_context":due,"post_learning_session":self.review_session,
             "review_policy":"Use this as context when it naturally fits; not as a separate quiz. Do not ask a review on the opening turn. No assessment on control messages, introductions, or mere assent."
         }).to_string())
     }
@@ -84,12 +95,16 @@ impl Teacher {
         let learner = (!matches!(turn.kind, TurnKind::Introduction)).then_some(turn.text.as_str());
         self.store
             .save_teaching_exchange(&self.lesson().id, learner, &reply.message)?;
+        let mut messages = vec![format!("Mercury\n{}", reply.message)];
+        if learned {
+            messages.push("Coach\nYou've worked through this concept. We can keep exploring it, or /next introduces the next one. I'll revisit it in conversation later.".into());
+        }
+        let checkpoint = self.checkpoint_reply(&messages)?;
         tx.commit()?;
         self.progress = next;
-        self.say("Mercury", &reply.message);
-        if learned {
-            self.say("Coach","You've worked through this concept. We can keep exploring it, or /next introduces the next one. I'll revisit it in conversation later.");
-        }
+        self.transcript.extend(messages);
+        self.saved_messages = self.transcript.len();
+        self.last_checkpoint = checkpoint;
         Ok(())
     }
 

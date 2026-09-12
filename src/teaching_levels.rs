@@ -46,13 +46,7 @@ pub fn start(store: &Store, lessons: &[Lesson], saved: Option<&str>) -> Result<u
         .iter()
         .position(|lesson| Some(lesson.id.as_str()) == saved)
     {
-        if store
-            .topic_progress(&lessons[index].id)?
-            .learned_at
-            .is_none()
-        {
-            return Ok(index);
-        }
+        return Ok(index);
     }
     Ok(unfinished(store, lessons)?
         .or(choose(store, lessons)?)

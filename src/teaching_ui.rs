@@ -125,9 +125,14 @@ fn pane(frame: &mut Frame, view: &Viewport, lines: Vec<Line<'static>>, block: Bl
         String::new()
     };
     frame.render_widget(
-        Paragraph::new(lines)
-            .scroll((view.top.min(u16::MAX as usize) as u16, 0))
-            .block(block.title_bottom(status)),
+        Paragraph::new(
+            lines
+                .into_iter()
+                .skip(view.top)
+                .take(visible)
+                .collect::<Vec<_>>(),
+        )
+        .block(block.title_bottom(status)),
         view.area,
     );
     if view.limit() == 0 {

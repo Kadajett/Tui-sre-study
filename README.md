@@ -27,7 +27,7 @@ docker compose run --rm trainer
 
 If an older trainer is already open, exit it and launch again to use the updated image. Existing progress and the private `.env` remain on Nucbox.
 
-Fresh sessions choose a random **unlearned beginner command** from the easiest unfinished level. An unfinished topic resumes at its saved step; a completed topic yields another eligible pick. There are 40 topics in four levels:
+Brand-new learning profiles choose a random **unlearned beginner command** from the easiest unfinished level. Restarts restore the same conversation and topic, including completed topics. `/next` chooses another eligible topic after the current course is complete. There are 40 topics in four levels:
 
 | Level | Focus |
 | --- | --- |
@@ -67,7 +67,7 @@ The Ratatui interface uses violet, blue, cyan, pink and amber, with an animated 
 
 Commands in the input, conversation and output panes receive syntax highlighting. Fenced blocks use their language label (including shell, JSON, YAML and Python); inline code uses shell highlighting. Unrecognized labels fall back to shell syntax. Raw command output retains its whitespace. Holding Shift typically lets your terminal select/copy text while mouse capture is active.
 
-Mercury works in the background. Up to eight messages can wait while it answers. A topic switch discards queued messages and ignores an in-flight reply from the old topic. Completed dialogue and learning state persist; a response still in flight when you exit is not saved. A terminal of at least 55 columns by 18 rows is required.
+Mercury works in the background. Up to eight messages can wait while it answers. A topic switch discards queued messages and ignores an in-flight reply from the old topic. Every submitted message, the full scrollable conversation, current topic/step, command output, draft input and reading position persist in SQLite. A turn waiting for Mercury is saved before its request starts. On restart it retries the model response with the saved command evidence; it never reruns the command. Topic changes append to the same conversation. Restarting does not add an introduction or repeat a completed addition. A terminal of at least 55 columns by 18 rows is required.
 
 ## How reinforcement works
 
@@ -77,7 +77,9 @@ A topic enters repetition only after demonstrated practice. For concepts, Mercur
 
 The teacher can update a due review only after it has invited that specific review and received an answer. Successful reinforcement increases the interval; needing help schedules another opportunity in ten minutes. Reviewing an older concept cannot graduate the current new topic. Assessment is model-based for conversational answers and can be imperfect; there are no self-grading buttons or keyword grading in the default conversation.
 
-The learning position, completed dialogue, practice status and teaching notes are stored in the existing SQLite progress volume. Unfinished course additions carry forward. Earlier completed courses remain learned. Old quiz attempts are preserved as history but don't prove that an unfamiliar topic was taught. An already completed guided `du` course is recognized as learned.
+Reinforcement sessions last **24 elapsed hours from their start**. Returning or sending a new message starts a new session once that window has elapsed, when you are in reinforcement or have learned topics due for it. Midnight, scrolling, typing a draft, and background replies do not start another session. Session boundaries only provide context for post-learning reinforcement; they never reset teaching, erase the conversation, or choose a new topic.
+
+The learning position, full dialogue, queued turns, practice status and teaching notes are stored in the existing SQLite progress volume. All previously saved teacher messages are imported on the first upgraded launch. Older messages or pending requests that earlier versions never saved cannot be recovered. Unfinished course additions carry forward. Earlier completed courses remain learned. Old quiz attempts are preserved as history but don't prove that an unfamiliar topic was taught. An already completed guided `du` course is recognized as learned.
 
 ## Curriculum and reference access
 
