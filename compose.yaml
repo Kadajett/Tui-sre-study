@@ -11,7 +11,7 @@ services:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       DEVDOCS_URL: ${DEVDOCS_URL:-}
       SEARXNG_URL: ${SEARXNG_URL:-}
-      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-inception/mercury-2.5}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-inception/mercury-2}
     volumes:
       - sre-progress:/data
     cap_drop: [ALL]

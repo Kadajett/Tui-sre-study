@@ -105,7 +105,7 @@ Configuration comes from the private, ignored `.env`:
 
 ```dotenv
 OPENROUTER_API_KEY=your-key
-OPENROUTER_MODEL=inception/mercury-2.5
+OPENROUTER_MODEL=inception/mercury-2
 # Optional: use your own service URLs, or leave blank.
 DEVDOCS_URL=
 SEARXNG_URL=
@@ -116,6 +116,8 @@ Blank reference URLs disable their lookup tools. Configured URLs may use HTTPS o
 The configured key is excluded from the image and lab subprocesses. Your messages, command output, recent conversation and due-topic notes are sent to OpenRouter. Selected search queries go through SearXNG, and retrieved excerpts may be sent to the teacher. Reference tools don't receive the API key or execute shell commands.
 
 Without Mercury, introductory material remains visible and the command labs still work. Conversational assessment waits for a successful teacher response; connection failures never imply that a topic was learned.
+
+The conversation header shows elapsed time and whether Mercury is answering, retrying, or looking up references. Teaching replies use a strict JSON schema. Empty or malformed replies are retried up to three attempts with the same saved evidence; commands are never executed by a retry. Each turn has a 60-second overall limit. If it still fails, send your question again; the saved lesson stays at its current step. A custom OpenRouter model must support structured outputs and, when reference services are configured, tool calling.
 
 ## Real incident practice
 

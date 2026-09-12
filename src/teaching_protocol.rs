@@ -37,6 +37,31 @@ pub struct TeachingReply {
 }
 
 impl TeachingReply {
+    pub fn response_format() -> serde_json::Value {
+        serde_json::json!({"type":"json_schema","json_schema":{
+            "name":"teaching_reply","strict":true,"schema":{
+                "type":"object","additionalProperties":false,
+                "required":["message","assessment","evidence","practice_offered","review_prompt_for","review_result"],
+                "properties":{
+                    "message":{"type":"string","minLength":1,"maxLength":24000},
+                    "assessment":{"type":"string","enum":["continue","understood"]},
+                    "evidence":{"type":"string","maxLength":2000},
+                    "practice_offered":{"type":"boolean"},
+                    "review_prompt_for":{"type":["string","null"]},
+                    "review_result":{"anyOf":[{"type":"null"},{
+                        "type":"object","additionalProperties":false,
+                        "required":["topic_id","outcome","evidence"],
+                        "properties":{
+                            "topic_id":{"type":"string"},
+                            "outcome":{"type":"string","enum":["remembered","needs_help"]},
+                            "evidence":{"type":"string"}
+                        }
+                    }]}
+                }
+            }
+        }})
+    }
+
     pub fn parse(text: &str) -> Result<Self> {
         let reply: Self = serde_json::from_str(text)?;
         ensure!(

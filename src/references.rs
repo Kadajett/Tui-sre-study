@@ -88,11 +88,15 @@ fn selected_definitions(definitions: Value, docs: bool, search: bool) -> Vec<Val
 }
 
 pub fn lookup(name: &str, arguments: &str) -> Result<Reference> {
+    lookup_with_timeout(name, arguments, Duration::from_secs(35))
+}
+
+pub fn lookup_with_timeout(name: &str, arguments: &str, timeout: Duration) -> Result<Reference> {
     ensure!(arguments.len() <= 2000, "Lookup arguments are too long");
     let client = Client::builder()
         .redirect(Policy::none())
         .connect_timeout(Duration::from_secs(4))
-        .timeout(Duration::from_secs(35))
+        .timeout(timeout)
         .build()?;
     match name {
         "list_docs" => catalog(&client, serde_json::from_str(arguments)?),

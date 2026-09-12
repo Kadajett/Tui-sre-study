@@ -446,7 +446,7 @@ fn tutor(lesson: &Lesson, answer: &str, result: &str, store: &Store) -> Result<S
     messages.extend(store.memories(&lesson.id));
     messages.push(json!({"role":"user","content":prompt}));
     let response=reqwest::blocking::Client::builder().timeout(Duration::from_secs(30)).build()?.post("https://openrouter.ai/api/v1/chat/completions").bearer_auth(key)
-        .json(&json!({"model":env::var("OPENROUTER_MODEL").unwrap_or_else(|_|"inception/mercury-2.5".into()),"messages":messages,"max_tokens":350})).send()?.error_for_status()?;
+        .json(&json!({"model":env::var("OPENROUTER_MODEL").unwrap_or_else(|_|"inception/mercury-2".into()),"messages":messages,"max_tokens":350})).send()?.error_for_status()?;
     let value: serde_json::Value = response.json()?;
     let text = value["choices"][0]["message"]["content"]
         .as_str()

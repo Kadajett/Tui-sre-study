@@ -82,12 +82,11 @@ fn dialogue(frame: &mut Frame, app: &mut Teacher, area: Rect) {
         .messages
         .lines(&app.transcript, area.width.saturating_sub(4));
     app.view.conversation.update(lines.len(), area);
-    let title = if app.coach.busy() {
-        "Learning conversation · thinking…"
-    } else {
-        "Learning conversation"
-    };
-    let block = pane_block(title, app.view.focused == Pane::Conversation);
+    let title = app.coach.status().map_or_else(
+        || "Learning conversation".to_owned(),
+        |status| format!("Learning conversation · {status}"),
+    );
+    let block = pane_block(&title, app.view.focused == Pane::Conversation);
     pane(frame, &app.view.conversation, lines, block);
 }
 

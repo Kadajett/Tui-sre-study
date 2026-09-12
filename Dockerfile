@@ -21,7 +21,7 @@ COPY data ./data
 
 ENV SRE_DATA_DIR=/data \
     SRE_LESSONS=/app/data/lessons.json \
-    OPENROUTER_MODEL=inception/mercury-2.5
+    OPENROUTER_MODEL=inception/mercury-2
 
 RUN useradd --create-home --uid 10001 trainee && mkdir -p /data && chown trainee:trainee /data
 USER trainee
