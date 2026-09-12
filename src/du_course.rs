@@ -58,6 +58,17 @@ pub fn step(index: usize) -> Step {
     }
 }
 
+pub fn practice(index: usize) -> (&'static str, Option<&'static str>) {
+    match index {
+        0 => ("Run `du` with no options in the current directory and observe allocated disk usage in KiB. Do not add -h, -s or a depth limit yet.", Some("du")),
+        1 => ("Run `du -h` in the current directory and compare readable units with the earlier KiB output. Keep the full directory listing; do not add a summary or depth limit yet.", Some("du -h")),
+        2 => ("Run `du -h logs` to measure only the logs subtree, including its archive. Add a target path, keeping readable units and the full subtree listing.", Some("du -h logs")),
+        3 => ("Run `du -sh logs` to show one readable total for logs, including its archive. Add only the summary flag; explain that hidden child rows still count in the total.", Some("du -sh logs")),
+        4 => ("Run `du -h --max-depth=1 .` to show immediate children and the current-directory total. Replace summary with a display depth limit; deeper descendants still count.", Some("du -h --max-depth=1 .")),
+        _ => ("Build a du command from memory that shows readable immediate-child totals and the current-directory total, without displaying deeper rows.", None),
+    }
+}
+
 pub fn meets_objective(index: usize, command: &DuCommand, output: &str) -> bool {
     if output.is_empty() || command.all {
         return false;

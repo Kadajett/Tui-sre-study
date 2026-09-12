@@ -46,9 +46,28 @@ pub fn step_count(lesson: &Lesson) -> usize {
 }
 
 pub fn practice_goal(lesson: &Lesson, index: usize) -> &str {
+    if lesson.id == crate::du_course::LESSON_ID {
+        return crate::du_course::practice(index).0;
+    }
     step(lesson, index)
         .map(|step| step.goal.as_str())
         .unwrap_or(&lesson.prompt)
+}
+
+pub fn step_title(lesson: &Lesson, index: usize) -> &str {
+    if lesson.id == crate::du_course::LESSON_ID {
+        return crate::du_course::step(index).title;
+    }
+    step(lesson, index).map_or_else(|| title(lesson), |part| part.title.as_str())
+}
+
+pub fn commands(lesson: &Lesson, index: usize) -> Vec<&str> {
+    if lesson.id == crate::du_course::LESSON_ID {
+        return crate::du_course::practice(index).1.into_iter().collect();
+    }
+    step(lesson, index).map_or_else(Vec::new, |part| {
+        part.commands.iter().map(String::as_str).collect()
+    })
 }
 
 pub fn title(lesson: &Lesson) -> &str {

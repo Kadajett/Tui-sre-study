@@ -145,7 +145,11 @@ impl Teacher {
         self.store
             .set_teaching_position(&self.scope, &self.lesson().id)?;
         self.say(
-            "Let's learn",
+            &format!(
+                "Step {} of {}",
+                self.progress.step + 1,
+                curriculum::step_count(self.lesson())
+            ),
             &curriculum::introduction(self.lesson(), self.progress.step),
         );
         if self.progress.learned_at.is_some() {

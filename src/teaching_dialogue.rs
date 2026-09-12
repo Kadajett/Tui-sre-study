@@ -21,12 +21,7 @@ impl Teacher {
             return Ok(());
         };
         let prompt = self.context(&turn)?;
-        let key = if matches!(turn.kind, TurnKind::Scenario { .. }) {
-            self.scenario_history_key()
-        } else {
-            self.lesson().id.clone()
-        };
-        let history = self.store.teaching_history(&key)?;
+        let history = self.history_for(&turn)?;
         self.in_flight = Some(turn.clone());
         if let Err(error) = self.checkpoint() {
             self.in_flight = None;
@@ -35,6 +30,20 @@ impl Teacher {
         }
         self.coach.teach(self.generation, prompt, history);
         Ok(())
+    }
+
+    pub(super) fn history_for(&self, turn: &Turn) -> Result<Vec<serde_json::Value>> {
+        // An explicit new-step introduction uses its authored goal, not prior model suggestions.
+        // The full chat remains saved and ordinary questions retain their conversation history.
+        if matches!(turn.kind, TurnKind::Introduction) {
+            return Ok(Vec::new());
+        }
+        let key = if matches!(turn.kind, TurnKind::Scenario { .. }) {
+            self.scenario_history_key()
+        } else {
+            self.lesson().id.clone()
+        };
+        self.store.teaching_history(&key)
     }
 
     fn receive_pending(&mut self) -> Result<()> {
@@ -70,7 +79,8 @@ impl Teacher {
         };
         Ok(json!({
             "scenario":match &turn.kind {TurnKind::Scenario {id,evaluate,verified}=>Some(json!({"briefing":crate::scenario_catalog::catalog().into_iter().find(|s| &s.id==id),"evaluate":evaluate,"recovery_verified":verified,"supported_commands":crate::lab_commands::available(id)})),_=>None},
-            "current_topic":{"id":self.lesson().id,"title":curriculum::title(self.lesson()),"teaching_material":curriculum::introduction(self.lesson(),self.progress.step),"practice_goal":curriculum::practice_goal(self.lesson(), self.progress.step),"step":self.progress.step+1,"step_count":curriculum::step_count(self.lesson()),"practice_mode":self.lesson().kind,"step_practiced":self.progress.ready,"already_learned":self.progress.learned_at.is_some()},
+            "current_topic":{"id":self.lesson().id,"title":curriculum::title(self.lesson()),"step_title":curriculum::step_title(self.lesson(), self.progress.step),"supported_commands":curriculum::commands(self.lesson(), self.progress.step),"teaching_material":curriculum::introduction(self.lesson(),self.progress.step),"practice_goal":curriculum::practice_goal(self.lesson(), self.progress.step),"step":self.progress.step+1,"step_count":curriculum::step_count(self.lesson()),"practice_mode":self.lesson().kind,"step_practiced":self.progress.ready,"already_learned":self.progress.learned_at.is_some()},
+            "navigation_policy":"The saved current_topic is authoritative. Earlier assistant suggestions do not advance its step. For introductions, teach only step_title and supported_commands. When step_practiced is true, answer questions about the output and invite /next; do not assign a later exercise. If the learner explicitly asks ahead, discuss it as extra exploration, not a change to the saved course position.",
             "intent":intent,"learner_message":turn.text,"can_assess_current_practice":turn.can_assess,
             "actual_command_output":turn.output,"command_topic":turn.lab_topic,
             "verified_command_success":match turn.kind {TurnKind::Lab(passed)=>Some(passed),_=>None},

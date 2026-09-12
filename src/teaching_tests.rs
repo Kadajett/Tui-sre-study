@@ -185,6 +185,71 @@ fn du_additions_still_execute_and_teach_before_enrollment() {
 }
 
 #[test]
+fn du_teacher_goal_matches_each_current_addition_instead_of_the_final_challenge() {
+    let dir = TempDir::new().unwrap();
+    let mut app = app(&dir, Some("linux"));
+    for command in ["du", "du -h", "du -h logs", "du -sh logs"] {
+        let turn = answer(&mut app, "/practice");
+        let context: serde_json::Value =
+            serde_json::from_str(&app.context(&turn).unwrap()).unwrap();
+        let goal = context["current_topic"]["practice_goal"].as_str().unwrap();
+        assert!(
+            goal.contains(command),
+            "Current step goal must identify {command}, got {goal}"
+        );
+        assert_ne!(
+            goal,
+            app.lesson().prompt,
+            "Do not hand the teacher the final challenge as a beginner goal"
+        );
+        app.submit(command).unwrap();
+        app.submit("/next").unwrap();
+        app.queue.clear();
+    }
+}
+
+#[test]
+fn next_introduces_the_saved_addition_without_inheriting_ahead_of_course_suggestions() {
+    let dir = TempDir::new().unwrap();
+    let mut app = app(&dir, None);
+    app.store
+        .save_teaching_exchange(
+            &app.lesson().id,
+            Some("Anything else useful?"),
+            "Now add -c after -d 1.",
+        )
+        .unwrap();
+    app.say("Mercury", "Now add -c after -d 1.");
+    app.submit("du").unwrap();
+    app.queue.clear();
+    app.submit("/next").unwrap();
+    let introduction = app.queue.pop_front().unwrap();
+    let context: serde_json::Value =
+        serde_json::from_str(&app.context(&introduction).unwrap()).unwrap();
+    assert_eq!(context["current_topic"]["step"], 2);
+    assert_eq!(
+        context["current_topic"]["step_title"],
+        "Add -h: readable sizes"
+    );
+    assert_eq!(
+        context["current_topic"]["supported_commands"],
+        serde_json::json!(["du -h"])
+    );
+    assert!(app.history_for(&introduction).unwrap().is_empty());
+    let question = answer(&mut app, "What does -h mean?");
+    assert!(!app.history_for(&question).unwrap().is_empty());
+    assert!(app
+        .transcript
+        .iter()
+        .any(|text| text.contains("Now add -c")));
+    app.checkpoint().unwrap();
+    drop(app);
+    let resumed = self::app(&dir, None);
+    assert_eq!(resumed.progress.step, 1);
+    assert!(!resumed.progress.ready);
+}
+
+#[test]
 fn malformed_teacher_metadata_cannot_mutate_learning() {
     assert!(TeachingReply::parse("not JSON").is_err());
     assert!(TeachingReply::parse(r#"{"message":"hello","assessment":"perfect","evidence":"","practice_offered":false,"review_prompt_for":null,"review_result":null}"#).is_err());
