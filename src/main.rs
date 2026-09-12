@@ -9,9 +9,18 @@ mod guided_terminal;
 #[cfg(test)]
 mod guided_tests;
 mod guided_ui;
+mod lab_checks;
+mod lab_commands;
+mod lab_docker;
+mod lab_kubernetes;
+mod lab_runtime;
+mod lab_server;
 mod references;
 mod reinforcement_session;
 mod roadmap;
+mod scenario_catalog;
+#[cfg(test)]
+mod scenario_tests;
 mod teaching;
 mod teaching_avatar;
 #[cfg(test)]
@@ -28,6 +37,8 @@ mod teaching_persistence;
 #[cfg(test)]
 mod teaching_persistence_tests;
 mod teaching_protocol;
+mod teaching_scenario_history;
+mod teaching_scenarios;
 mod teaching_store;
 mod teaching_syntax;
 mod teaching_terminal;

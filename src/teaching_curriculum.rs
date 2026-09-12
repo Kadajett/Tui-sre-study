@@ -74,7 +74,13 @@ pub fn introduction(lesson: &Lesson, step: usize) -> String {
             .map(|command| format!("Type: `{command}`"))
             .unwrap_or_default();
         let mode = if lesson.kind == "walkthrough" {
-            "Kubernetes practice example — sample output, no cluster connection."
+            if lesson.deck == "kubernetes" {
+                "Start `/lab kubernetes` once, then type the command below. It runs against real pods in the dedicated sre-practice namespace."
+            } else {
+                "Start `/lab docker` once, then type the command below. It runs against real practice containers."
+            }
+        } else if part.commands.is_empty() {
+            "This is a worked example to discuss. Ask a question or use /practice for a guided application."
         } else {
             "Run this in the input below. It executes inside the practice container."
         };

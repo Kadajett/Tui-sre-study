@@ -29,6 +29,10 @@ impl ReadingPosition {
 #[derive(Serialize, Deserialize)]
 struct Resume {
     version: u8,
+    #[serde(default)]
+    lab: crate::teaching_scenarios::LabState,
+    #[serde(default)]
+    lab_practiced: Option<(String, usize)>,
     topic: String,
     input: String,
     output: String,
@@ -44,6 +48,8 @@ impl Resume {
     fn capture(app: &Teacher) -> Self {
         Self {
             version: 1,
+            lab: app.lab.clone(),
+            lab_practiced: app.lab_practiced.clone(),
             topic: app.lesson().id.clone(),
             input: app.input.clone(),
             output: app.output.clone(),
@@ -90,6 +96,11 @@ impl Teacher {
         );
         self.transcript = self.store.chat_messages(&self.scope)?;
         self.saved_messages = self.transcript.len();
+        self.lab = resume.lab;
+        self.lab_practiced = resume.lab_practiced;
+        if let Some(pending) = self.lab.pending.take() {
+            self.say("Practice runner", &format!("A lab operation was interrupted: `{pending}`. It may have completed remotely. It will not run again automatically; inspect the existing resources before retrying."));
+        }
         self.input = resume.input;
         self.output = resume.output;
         self.generation = resume.generation;

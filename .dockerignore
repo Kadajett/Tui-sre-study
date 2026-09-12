@@ -10,3 +10,5 @@ target
 *.pem
 *.key
 *.tar.gz
+
+.credentials/

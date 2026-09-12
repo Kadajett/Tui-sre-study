@@ -1,9 +1,13 @@
 services:
   trainer:
-    build: .
+    build:
+      context: .
+      target: trainer
+    depends_on: [lab-runner]
     stdin_open: true
     tty: true
     environment:
+      SRE_LAB_URL: http://lab-runner:8766
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       DEVDOCS_URL: ${DEVDOCS_URL:-https://devdocs.tailf93a13.ts.net}
       SEARXNG_URL: ${SEARXNG_URL:-https://searxng.tailf93a13.ts.net}
@@ -17,5 +21,26 @@ services:
     tmpfs:
       - /tmp:size=128m,mode=1777
 
+  lab-runner:
+    build:
+      context: .
+      target: lab-runner
+    restart: unless-stopped
+    command: ["--lab-server"]
+    environment:
+      SRE_LAB_NODE: ${SRE_LAB_NODE:-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./.credentials:/credentials:ro
+      - lab-state:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop: [ALL]
+    cap_add: [DAC_OVERRIDE]
+    security_opt:
+      - no-new-privileges:true
+
 volumes:
+  lab-state:
   sre-progress:

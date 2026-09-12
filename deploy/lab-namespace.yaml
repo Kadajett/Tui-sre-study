@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sre-practice
+  labels:
+    app.kubernetes.io/managed-by: sre-trainer
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.31
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: practice-budget
+  namespace: sre-practice
+spec:
+  hard:
+    pods: '8'
+    requests.cpu: '1'
+    requests.memory: 256Mi
+    limits.cpu: '2'
+    limits.memory: 512Mi
+    services: '2'
+    services.nodeports: '0'
+    services.loadbalancers: '0'
+    persistentvolumeclaims: '0'
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: practice-runner
+  namespace: sre-practice
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: practice-runner
+  namespace: sre-practice
+rules:
+  - apiGroups: ['']
+    resources: [pods, services]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: ['']
+    resources: [pods/log, events, endpoints]
+    verbs: [get, list, watch]
+  - apiGroups: ['']
+    resources: [pods/exec]
+    verbs: [create]
+  - apiGroups: [apps]
+    resources: [deployments, replicasets]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [discovery.k8s.io]
+    resources: [endpointslices]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: practice-runner
+  namespace: sre-practice
+subjects:
+  - kind: ServiceAccount
+    name: practice-runner
+    namespace: sre-practice
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: practice-runner

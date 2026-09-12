@@ -9,6 +9,7 @@ use serde_json::json;
 
 impl Teacher {
     pub fn tick(&mut self) -> Result<()> {
+        self.poll_lab()?;
         if !self.online {
             return Ok(());
         }
@@ -20,7 +21,12 @@ impl Teacher {
             return Ok(());
         };
         let prompt = self.context(&turn)?;
-        let history = self.store.teaching_history(&self.lesson().id)?;
+        let key = if matches!(turn.kind, TurnKind::Scenario { .. }) {
+            self.scenario_history_key()
+        } else {
+            self.lesson().id.clone()
+        };
+        let history = self.store.teaching_history(&key)?;
         self.in_flight = Some(turn.clone());
         if let Err(error) = self.checkpoint() {
             self.in_flight = None;
@@ -60,8 +66,10 @@ impl Teacher {
             TurnKind::Practice => "guide_a_small_example_or_explain_more",
             TurnKind::Conversation => "respond_to_learner",
             TurnKind::Lab(_) => "explain_actual_command_output",
+            TurnKind::Scenario { .. } => "coach_or_assess_live_incident",
         };
         Ok(json!({
+            "scenario":match &turn.kind {TurnKind::Scenario {id,evaluate,verified}=>Some(json!({"briefing":crate::scenario_catalog::catalog().into_iter().find(|s| &s.id==id),"evaluate":evaluate,"recovery_verified":verified,"supported_commands":crate::lab_commands::available(id)})),_=>None},
             "current_topic":{"id":self.lesson().id,"title":curriculum::title(self.lesson()),"teaching_material":curriculum::introduction(self.lesson(),self.progress.step),"practice_goal":curriculum::practice_goal(self.lesson(), self.progress.step),"step":self.progress.step+1,"step_count":curriculum::step_count(self.lesson()),"practice_mode":self.lesson().kind,"step_practiced":self.progress.ready,"already_learned":self.progress.learned_at.is_some()},
             "intent":intent,"learner_message":turn.text,"can_assess_current_practice":turn.can_assess,
             "actual_command_output":turn.output,"command_topic":turn.lab_topic,
@@ -83,6 +91,13 @@ impl Teacher {
     }
 
     pub fn apply_reply(&mut self, reply: TeachingReply, turn: &Turn) -> Result<()> {
+        if self.apply_scenario_reply(&reply, turn)? {
+            return self.checkpoint();
+        }
+        self.apply_teaching_reply(reply, turn)
+    }
+
+    fn apply_teaching_reply(&mut self, reply: TeachingReply, turn: &Turn) -> Result<()> {
         let (mut next, learned) = self.assessed_progress(&reply, turn);
         let tx = self.store.db.unchecked_transaction()?;
         next.pending_review = self.review_context(&reply, turn)?;
@@ -153,6 +168,9 @@ impl Teacher {
 
     fn demonstrated_topic(&self, reply: &TeachingReply, turn: &Turn) -> bool {
         self.progress.learned_at.is_none()
+            && (self.lesson().kind != "walkthrough"
+                || self.lab_practiced.as_ref()
+                    == Some(&(self.lesson().id.clone(), self.progress.step)))
             && self.lesson().kind != "command"
             && turn.can_assess
             && matches!(turn.kind, TurnKind::Conversation)

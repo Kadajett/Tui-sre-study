@@ -1,6 +1,14 @@
 use anyhow::{Context, Result};
 
 pub fn run(args: &[String]) -> Result<bool> {
+    if args.iter().any(|arg| arg == "--check-labs") {
+        crate::lab_checks::run()?;
+        return Ok(true);
+    }
+    if args.iter().any(|arg| arg == "--lab-server") {
+        crate::lab_server::serve()?;
+        return Ok(true);
+    }
     if let Some(index) = args.iter().position(|arg| arg == "--check-teacher") {
         return check_teacher(args.get(index + 1).map(String::as_str));
     }

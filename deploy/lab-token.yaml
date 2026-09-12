@@ -1,0 +1,10 @@
+# For an external Docker runner that cannot use a projected pod token.
+# This credential is namespace-scoped and must stay outside source and images.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: practice-runner-token
+  namespace: sre-practice
+  annotations:
+    kubernetes.io/service-account.name: practice-runner
+type: kubernetes.io/service-account-token

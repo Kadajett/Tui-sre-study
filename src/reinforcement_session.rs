@@ -58,7 +58,9 @@ impl Store {
 
 impl Teacher {
     pub(super) fn touch_review_session(&mut self, now: DateTime<Utc>) -> Result<()> {
-        let active = self.progress.learned_at.is_some() || !self.store.teaching_due()?.is_empty();
+        let active = self.lab.scenario
+            || self.progress.learned_at.is_some()
+            || !self.store.teaching_due()?.is_empty();
         self.review_session = if active {
             Some(self.store.review_session_at(now)?)
         } else {

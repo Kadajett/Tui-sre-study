@@ -11,6 +11,11 @@ pub enum TurnKind {
     Conversation,
     Practice,
     Lab(bool),
+    Scenario {
+        id: String,
+        evaluate: bool,
+        verified: bool,
+    },
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -24,6 +29,9 @@ pub struct Turn {
 }
 
 pub struct Teacher {
+    pub(super) lab: crate::teaching_scenarios::LabState,
+    pub(super) lab_practiced: Option<(String, usize)>,
+    pub(super) lab_worker: Option<crate::teaching_scenarios::Worker>,
     pub lessons: Vec<Lesson>,
     pub(super) catalog: Vec<Lesson>,
     pub index: usize,
@@ -69,6 +77,9 @@ impl Teacher {
         );
         let fixture = crate::teaching_lab::practice_fixture()?;
         let mut app = Self {
+            lab: Default::default(),
+            lab_worker: None,
+            lab_practiced: None,
             lessons: selected,
             catalog,
             index,
@@ -116,6 +127,15 @@ impl Teacher {
         if text.is_empty() {
             return Ok(());
         }
+        if self.lab.scenario
+            && matches!(
+                text.split_whitespace().next(),
+                Some("/next" | "/topic" | "/level")
+            )
+        {
+            self.say("Incident practice", "Your normal lesson is saved. Use /lab stop to finish this lab before continuing teaching; /hint supports the current incident.");
+            return Ok(());
+        }
         if !text.starts_with('/') {
             return self.respond(text);
         }
@@ -127,8 +147,11 @@ impl Teacher {
             "/quit" => self.quit = true,
             "/next" => self.next()?,
             "/topics" => self.show_topics(),
+            "/scenarios" => self.scenarios()?,
+            "/lab" => self.lab_control("")?,
             "/levels" => self.say("Learning levels", &crate::teaching_levels::overview(&self.store, &self.lessons)?),
-            "/help" => self.say("Coach", "Talk normally, or type a supported lab command. /practice asks for a small guided exercise; /hint asks for a simpler explanation. /next continues once we've practiced this concept. /topic ID chooses a topic; /topics lists them. /levels shows the learning ladder; /level N explores a level. Mouse wheel scrolls the pane under the pointer. Tab selects a pane for PageUp/PageDown or arrows; Home/End jumps to its start/latest. Esc quits. Reviews are woven into teaching after you've learned a topic."),
+            "/help" => self.say("Coach", "Talk normally, or type a supported lab command. /practice asks for a small guided exercise; /hint asks for a simpler explanation. /next continues once we've practiced this concept. /topic ID chooses a topic; /topics lists them. /levels shows the learning ladder; /level N explores a level. Mouse wheel scrolls the pane under the pointer. Tab selects a pane for PageUp/PageDown or arrows; Home/End jumps to its start/latest. Esc quits. Reviews are woven into teaching after you've learned a topic. /scenarios shows unlocked real incidents. /lab starts real Kubernetes or Docker practice. /solve EXPLANATION submits incident evidence."),
+            "/practice" | "/hint" if self.lab.scenario => self.scenario_turn(text, None, "")?,
             "/practice" | "/hint" => self.enqueue(text, TurnKind::Practice)?,
             _ => self.named_instruction(text)?,
         }
@@ -138,6 +161,10 @@ impl Teacher {
     fn named_instruction(&mut self, text: &str) -> Result<()> {
         let (command, argument) = text.split_once(' ').unwrap_or((text, ""));
         match command {
+            "/scenario" => self.start_scenario(argument)?,
+            "/solve" => self.solve_scenario(argument)?,
+            "/lab" => self.lab_control(argument)?,
+            "/ask" if self.lab.scenario => self.scenario_turn(argument, None, "")?,
             "/ask" => self.enqueue(argument, TurnKind::Conversation)?,
             "/topic" => self.select_topic(argument)?,
             "/level" => self.select_level(argument)?,
@@ -148,8 +175,11 @@ impl Teacher {
 
     fn respond(&mut self, text: &str) -> Result<()> {
         let executable = text.split_whitespace().next().unwrap_or("");
-        if executable == "kubectl" && self.lesson().kind == "walkthrough" {
-            return self.walkthrough(text);
+        if matches!(executable, "kubectl" | "docker") {
+            return self.lab_job("command", text, "");
+        }
+        if self.lab.scenario {
+            return self.scenario_turn(text, None, "");
         }
         if executable == "du"
             || self
@@ -172,6 +202,10 @@ impl Teacher {
         let lab_topic = if matches!(kind, TurnKind::Lab(_)) {
             Some(if text.split_whitespace().next() == Some("du") {
                 crate::du_course::LESSON_ID.into()
+            } else if text.split_whitespace().next() == Some("kubectl") {
+                "k8s-kubectl-basics".into()
+            } else if text.split_whitespace().next() == Some("docker") {
+                "docker-basics".into()
             } else {
                 self.lesson().id.clone()
             })

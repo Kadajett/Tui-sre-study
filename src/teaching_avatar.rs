@@ -31,6 +31,18 @@ pub fn draw(frame: &mut Frame, app: &Teacher, area: Rect) {
         app.progress.step + 1,
         teaching_curriculum::step_count(app.lesson())
     );
+    let lab_status = app.lab.active.as_ref().map(|id| {
+        format!(
+            "Real lab: {id}{}",
+            if app.lab.pending.is_some() {
+                " · running"
+            } else if app.lab.completed {
+                " · resolved"
+            } else {
+                ""
+            }
+        )
+    });
     let lines = vec![
         Line::styled(
             teaching_curriculum::title(app.lesson()),
@@ -48,7 +60,9 @@ pub fn draw(frame: &mut Frame, app: &Teacher, area: Rect) {
             Style::default().fg(palette::AMBER),
         ),
         Line::styled(
-            crate::teaching_levels::name(teaching_curriculum::level(app.lesson())),
+            lab_status.unwrap_or_else(|| {
+                crate::teaching_levels::name(teaching_curriculum::level(app.lesson())).into()
+            }),
             Style::default().fg(palette::MUTED),
         ),
     ];

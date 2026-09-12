@@ -111,14 +111,16 @@ fn networking_course_cannot_modify_addresses_or_inspect_host_files() {
 }
 
 #[test]
-fn kubernetes_samples_need_explanations_and_only_enroll_after_the_last_step() {
+fn kubernetes_requires_real_execution_and_explanation_for_each_step() {
     let dir = TempDir::new().unwrap();
     let mut app = app(&dir);
     app.submit("/topic k8s-kubectl-basics").unwrap();
     let steps = app.lesson().teaching.as_ref().unwrap().steps.clone();
     for (index, step) in steps.iter().enumerate() {
-        app.submit(&step.commands[0]).unwrap();
-        assert!(app.output.contains("no cluster connection"));
+        assert!(app.submit(&step.commands[0]).is_err());
+        assert!(app.output.is_empty());
+        app.lab_practiced = Some((app.lesson().id.clone(), index));
+        app.progress.practice_offered = true;
         assert!(!app.progress.ready);
         assert!(app.progress.learned_at.is_none());
         app.queue.clear();

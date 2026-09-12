@@ -494,12 +494,12 @@
     "teaching": {
       "title": "kubectl: your first investigation",
       "why": "Build an investigation from one observation at a time while keeping the cluster and namespace explicit.",
-      "example": "The command examples below use prepared output from an imaginary practice namespace. They do not connect to or modify your cluster.",
+      "example": "A healthy deployment, client pod, and Service run in the dedicated sre-practice namespace. Worked examples illustrate columns; actual values come from your commands.",
       "level": 2,
       "steps": [
         {
           "title": "Check which cluster you are addressing",
-          "explanation": "A context chooses a cluster, user credentials, and optionally a default namespace. Always identify it before interpreting cluster output. Here we use a sample context called sre-practice.",
+          "explanation": "A context chooses a cluster, credentials, and optionally a default namespace. Start `/lab kubernetes` once, then inspect the real practice context. The runner uses credentials scoped to the practice namespace.",
           "commands": [
             "kubectl config current-context"
           ],
@@ -508,39 +508,39 @@
         },
         {
           "title": "List pods in one namespace",
-          "explanation": "`get pods` produces a compact inventory. `-n practice` explicitly selects the namespace. READY compares ready containers with the pod total; STATUS is a summary, and RESTARTS deserves context.",
+          "explanation": "`get pods` produces a compact inventory. `-n sre-practice` explicitly selects the namespace. READY compares ready containers with the pod total; STATUS is a summary, and RESTARTS deserves context.",
           "commands": [
-            "kubectl get pods -n practice"
+            "kubectl get pods -n sre-practice"
           ],
-          "example": "```text\nNAME        READY STATUS  RESTARTS AGE\nweb-7c9d    1/1   Running 0        10m\nworker-2ab  0/1   Pending 0        2m\n```",
-          "goal": "Explain namespace selection and identify which sample pod needs investigation."
+          "example": "Illustration: `READY 1/1` means one of one containers is ready. Your real pod names and state appear in the console.",
+          "goal": "Explain the selected namespace and distinguish the web workload from the client pod in your actual inventory."
         },
         {
           "title": "Add placement information",
           "explanation": "Keep the same inventory and add `-o wide`. This adds columns such as IP and NODE. It changes the output, not where pods run.",
           "commands": [
-            "kubectl get pods -n practice -o wide"
+            "kubectl get pods -n sre-practice -o wide"
           ],
-          "example": "```text\nNAME        READY STATUS  IP           NODE\nweb-7c9d    1/1   Running 10.42.0.12   node-a\nworker-2ab  0/1   Pending <none>       <none>\n```",
-          "goal": "Explain what -o wide adds and why a Pending pod might have no node yet."
+          "example": "Illustration: `-o wide` adds IP and NODE columns. Compare the actual output with your previous inventory.",
+          "goal": "Explain what -o wide added to the actual output, without treating Running as proof of application health."
         },
         {
-          "title": "Describe one pod and read events",
-          "explanation": "Narrow from an inventory to one object. `describe` includes details and recent events. Read the event reason and message as evidence before choosing a fix.",
+          "title": "Describe the web deployment",
+          "explanation": "Narrow from inventory to one workload. `describe deployment web` includes desired and available replicas, pod template, conditions, and events. Events can be absent in a healthy system; that absence is not an error.",
           "commands": [
-            "kubectl describe pod worker-2ab -n practice"
+            "kubectl describe deployment web -n sre-practice"
           ],
-          "example": "```text\nName: worker-2ab\nNamespace: practice\nStatus: Pending\nEvents:\n  Warning FailedScheduling  0/2 nodes are available: insufficient cpu.\n```",
-          "goal": "Explain what the scheduler event says, and distinguish insufficient schedulable CPU from proof of high CPU usage."
+          "example": "Illustration: `Available=True` is a controller condition. Read the actual replica counts and conditions returned by your cluster.",
+          "goal": "Explain desired versus available replicas using the real deployment description."
         },
         {
           "title": "Read recent application logs",
-          "explanation": "For a running container, `logs` retrieves its output. `--tail=20` limits the lines returned. Logs describe application behavior; scheduler events describe placement. This example has one container.",
+          "explanation": "`logs deployment/web` selects an application pod belonging to the deployment. `--tail=20` bounds the returned lines. Logs report what the application emits; they are different from scheduler and controller events.",
           "commands": [
-            "kubectl logs web-7c9d -n practice --tail=20"
+            "kubectl logs deployment/web -n sre-practice --tail=20"
           ],
-          "example": "```text\nINFO listening on :8080\nINFO GET /health 200\nERROR database request timed out\n```",
-          "goal": "Explain the difference between logs and describe/events, and identify the evidence in the sample without assuming its root cause."
+          "example": "Illustration: `listening on :8080` reports the configured listener. An HTTP access line appears only after an actual request or probe.",
+          "goal": "Explain one actual log line and how it differs from a Kubernetes event. Avoid inferring an outage merely from an illustrative example."
         }
       ]
     }
@@ -1534,6 +1534,852 @@
       "why": "A useful investigation explains the conditions that made failure possible.",
       "example": "Instead of stopping at an operator ran the wrong command, examine ambiguous tooling, missing safeguards, detection delays and recovery options, then assign concrete improvements.",
       "level": 3
+    }
+  },
+  {
+    "id": "docker-basics",
+    "deck": "containers",
+    "kind": "walkthrough",
+    "prompt": "Identify the web and client containers and interpret their actual state.; Explain what -a adds and why an absent running row is not proof a container was deleted.; Describe the real process state and network membership, citing the fields.; Explain what the actual log establishes and what it leaves unknown.; Explain why this client request demonstrates more than a Running status.",
+    "answer": "Start `/lab docker` once. `docker ps` lists running containers; the label filter limits this real inventory to the trainer fixtures. Add `-a` to the same filtered inventory. A stopped container still exists even though its main process has exited. `inspect` returns actual JSON including State, Config, and NetworkSettings. Separate the configured command from whether its process currently runs. Logs retrieve stdout and stderr from the container process. The bounded tail prevents a long history from hiding recent evidence. A successful client request checks the actual name, network, listener, and response together. Port 8080 is inside the private practice network.",
+    "fixture": null,
+    "allowed_commands": [
+      "docker"
+    ],
+    "checks": null,
+    "keyword_groups": [],
+    "minimum_groups": null,
+    "teaching": {
+      "title": "Docker: inspect a real service",
+      "level": 2,
+      "why": "Distinguish the container object, its process, its configuration, and its logs before changing anything.",
+      "example": "Illustration: STATUS describes process state, while NAMES identifies the object. Your two actual names are sre-practice-web and sre-practice-client.",
+      "steps": [
+        {
+          "title": "List running practice containers",
+          "explanation": "Start `/lab docker` once. `docker ps` lists running containers; the label filter limits this real inventory to the trainer fixtures.",
+          "example": "Illustration: STATUS describes process state, while NAMES identifies the object. Your two actual names are sre-practice-web and sre-practice-client.",
+          "goal": "Identify the web and client containers and interpret their actual state.",
+          "commands": [
+            "docker ps --filter label=app.kubernetes.io/managed-by=sre-trainer"
+          ]
+        },
+        {
+          "title": "Include stopped containers",
+          "explanation": "Add `-a` to the same filtered inventory. A stopped container still exists even though its main process has exited.",
+          "example": "A healthy baseline can show the same two rows with and without -a. A later incident changes that.",
+          "goal": "Explain what -a adds and why an absent running row is not proof a container was deleted.",
+          "commands": [
+            "docker ps -a --filter label=app.kubernetes.io/managed-by=sre-trainer"
+          ]
+        },
+        {
+          "title": "Inspect structured configuration",
+          "explanation": "`inspect` returns actual JSON including State, Config, and NetworkSettings. Separate the configured command from whether its process currently runs.",
+          "example": "Look for `State.Running` and `NetworkSettings.Networks` in the actual JSON.",
+          "goal": "Describe the real process state and network membership, citing the fields.",
+          "commands": [
+            "docker inspect sre-practice-web"
+          ]
+        },
+        {
+          "title": "Read the application logs",
+          "explanation": "Logs retrieve stdout and stderr from the container process. The bounded tail prevents a long history from hiding recent evidence.",
+          "example": "The authored web process prints its listener, then the HTTP server writes request logs.",
+          "goal": "Explain what the actual log establishes and what it leaves unknown.",
+          "commands": [
+            "docker logs --tail 20 sre-practice-web"
+          ]
+        },
+        {
+          "title": "Verify from another container",
+          "explanation": "A successful client request checks the actual name, network, listener, and response together. Port 8080 is inside the private practice network.",
+          "example": "The expected response body is `SRE practice service healthy`; use the console output as evidence.",
+          "goal": "Explain why this client request demonstrates more than a Running status.",
+          "commands": [
+            "docker exec sre-practice-client wget -T 3 -qO- http://web:8080/"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "docker-lifecycle",
+    "deck": "containers",
+    "kind": "recall",
+    "prompt": "Distinguish stopped from deleted and explain what evidence to collect first.; Explain why a particular exit code can support multiple causes.; Describe evidence to gather before recovery and how to verify the result.",
+    "answer": "A container can remain as an object after its main process exits. Running, exited, and deleted describe different situations. An exit code describes a process termination. It does not independently establish the cause; connect it to logs, timing, signals and resource evidence. Starting a stopped container starts its configured process again. A running process still needs a client check; restarting may temporarily hide a recurring fault.",
+    "fixture": null,
+    "allowed_commands": [],
+    "checks": null,
+    "keyword_groups": [],
+    "minimum_groups": null,
+    "teaching": {
+      "title": "Container lifecycle and exit evidence",
+      "level": 2,
+      "why": "Recover the intended process while preserving evidence.",
+      "example": "An inventory with -a includes an Exited row missing from the running inventory.",
+      "steps": [
+        {
+          "title": "A container and its main process",
+          "explanation": "A container can remain as an object after its main process exits. Running, exited, and deleted describe different situations.",
+          "example": "An inventory with -a includes an Exited row missing from the running inventory.",
+          "goal": "Distinguish stopped from deleted and explain what evidence to collect first.",
+          "commands": []
+        },
+        {
+          "title": "Interpret exit status carefully",
+          "explanation": "An exit code describes a process termination. It does not independently establish the cause; connect it to logs, timing, signals and resource evidence.",
+          "example": "Exit 137 is consistent with SIGKILL; it alone does not prove an out-of-memory kill.",
+          "goal": "Explain why a particular exit code can support multiple causes.",
+          "commands": []
+        },
+        {
+          "title": "Restore and verify",
+          "explanation": "Starting a stopped container starts its configured process again. A running process still needs a client check; restarting may temporarily hide a recurring fault.",
+          "example": "The later stopped-service scenario permits a real start followed by a request from the client.",
+          "goal": "Describe evidence to gather before recovery and how to verify the result.",
+          "commands": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "docker-networking",
+    "deck": "containers",
+    "kind": "recall",
+    "prompt": "Explain why two running containers may still be unable to communicate.; Distinguish listening, declared, and published ports.; Explain why publishing a port is unnecessary for this internal client request.",
+    "answer": "Containers communicate through their attached networks. A private bridge can supply name resolution between attached containers. A service must bind a reachable address and port inside its container network namespace. A declared port does not start a listener. A request from the client container tests its path to the service. A host request follows a different path, often requiring port publishing.",
+    "fixture": null,
+    "allowed_commands": [],
+    "checks": null,
+    "keyword_groups": [],
+    "minimum_groups": null,
+    "teaching": {
+      "title": "Container networks, names, and ports",
+      "level": 2,
+      "why": "Trace the real client path without confusing host and container addresses.",
+      "example": "The practice client and web attach to sre-practice-net; web is a network alias.",
+      "steps": [
+        {
+          "title": "Network membership",
+          "explanation": "Containers communicate through their attached networks. A private bridge can supply name resolution between attached containers.",
+          "example": "The practice client and web attach to sre-practice-net; web is a network alias.",
+          "goal": "Explain why two running containers may still be unable to communicate.",
+          "commands": []
+        },
+        {
+          "title": "The listener is inside a namespace",
+          "explanation": "A service must bind a reachable address and port inside its container network namespace. A declared port does not start a listener.",
+          "example": "The healthy practice process listens on 8080; a client URL must address that listener.",
+          "goal": "Distinguish listening, declared, and published ports.",
+          "commands": []
+        },
+        {
+          "title": "Choose the right vantage point",
+          "explanation": "A request from the client container tests its path to the service. A host request follows a different path, often requiring port publishing.",
+          "example": "The private practice network intentionally publishes no host ports.",
+          "goal": "Explain why publishing a port is unnecessary for this internal client request.",
+          "commands": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "k8s-crashloops",
+    "deck": "kubernetes",
+    "kind": "recall",
+    "prompt": "Explain what CrashLoopBackOff tells you and what remains unknown.; Explain how a log supports a configuration hypothesis without guessing from status alone.; Describe the correction and a check that would catch a continuing restart loop.",
+    "answer": "CrashLoopBackOff reports backoff after repeated container failures; it is not the underlying cause. Pending can instead mean placement has not completed. Combine current or previous logs, container termination details, and recent configuration changes. An application error can be more specific than the status summary. A deployment change creates a new pod template revision. Verify rollout, readiness, and the actual request; avoid treating one brief Running observation as stable recovery.",
+    "fixture": null,
+    "allowed_commands": [],
+    "checks": null,
+    "keyword_groups": [],
+    "minimum_groups": null,
+    "teaching": {
+      "title": "Crash loops: logs before guesses",
+      "level": 2,
+      "why": "Use process evidence to distinguish application failure from placement failure.",
+      "example": "An application can print a configuration error and exit while the pod repeatedly restarts.",
+      "steps": [
+        {
+          "title": "Waiting versus restarting",
+          "explanation": "CrashLoopBackOff reports backoff after repeated container failures; it is not the underlying cause. Pending can instead mean placement has not completed.",
+          "example": "An application can print a configuration error and exit while the pod repeatedly restarts.",
+          "goal": "Explain what CrashLoopBackOff tells you and what remains unknown.",
+          "commands": []
+        },
+        {
+          "title": "Find the earliest causal evidence",
+          "explanation": "Combine current or previous logs, container termination details, and recent configuration changes. An application error can be more specific than the status summary.",
+          "example": "A fixture logs that MODE must be serving before exiting.",
+          "goal": "Explain how a log supports a configuration hypothesis without guessing from status alone.",
+          "commands": []
+        },
+        {
+          "title": "Fix desired configuration",
+          "explanation": "A deployment change creates a new pod template revision. Verify rollout, readiness, and the actual request; avoid treating one brief Running observation as stable recovery.",
+          "example": "Correcting an environment value lets the authored application start and serve.",
+          "goal": "Describe the correction and a check that would catch a continuing restart loop.",
+          "commands": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "k8s-rollouts",
+    "deck": "kubernetes",
+    "kind": "recall",
+    "prompt": "Explain desired versus available replicas.; Choose evidence that distinguishes scheduling, startup, and readiness failures.; Explain what must be checked before choosing rollback.",
+    "answer": "A Deployment controller reconciles its pod template and replica count through ReplicaSets. Editing desired state is not immediate observed success. Conditions, events, readiness, and client signals answer different questions. A rollout may stall because the new pods cannot become ready. A previous pod template can restore a bad application rollout, but rollback does not automatically undo external data migrations or every configuration change.",
+    "fixture": null,
+    "allowed_commands": [],
+    "checks": null,
+    "keyword_groups": [],
+    "minimum_groups": null,
+    "teaching": {
+      "title": "Deployments and rollout recovery",
+      "level": 3,
+      "why": "Connect declarative changes to real replacement processes.",
+      "example": "Three replicas desired with two available means the rollout is not yet fully available.",
+      "steps": [
+        {
+          "title": "Desired and observed state",
+          "explanation": "A Deployment controller reconciles its pod template and replica count through ReplicaSets. Editing desired state is not immediate observed success.",
+          "example": "Three replicas desired with two available means the rollout is not yet fully available.",
+          "goal": "Explain desired versus available replicas.",
+          "commands": []
+        },
+        {
+          "title": "Observe rollout health",
+          "explanation": "Conditions, events, readiness, and client signals answer different questions. A rollout may stall because the new pods cannot become ready.",
+          "example": "An image starts but its readiness path returns 404.",
+          "goal": "Choose evidence that distinguishes scheduling, startup, and readiness failures.",
+          "commands": []
+        },
+        {
+          "title": "Rollback boundaries",
+          "explanation": "A previous pod template can restore a bad application rollout, but rollback does not automatically undo external data migrations or every configuration change.",
+          "example": "Old code may fail after an incompatible schema change.",
+          "goal": "Explain what must be checked before choosing rollback.",
+          "commands": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "k8s-config",
+    "deck": "kubernetes",
+    "kind": "recall",
+    "prompt": "Explain how you would verify the value actually used by the process.; Explain a useful diagnostic that avoids disclosing secret content.; Distinguish missing, invalid, and stale configuration.",
+    "answer": "Environment values are fixed at process start. Mounted configuration and application reload behavior have different update semantics. A Kubernetes Secret is a sensitive API resource, not permission to print values in logs, lessons or chat. Base64 is an encoding, not encryption. Check required values and failure messages before changing a workload. A small scoped validation helps separate a bad value from a missing delivery mechanism.",
+    "fixture": null,
+    "allowed_commands": [],
+    "checks": null,
+    "keyword_groups": [],
+    "minimum_groups": null,
+    "teaching": {
+      "title": "Runtime configuration and secret boundaries",
+      "level": 3,
+      "why": "Separate deployment inputs from application behavior.",
+      "example": "Changing a configuration source does not guarantee an existing process has loaded its new value.",
+      "steps": [
+        {
+          "title": "Configuration delivery",
+          "explanation": "Environment values are fixed at process start. Mounted configuration and application reload behavior have different update semantics.",
+          "example": "Changing a configuration source does not guarantee an existing process has loaded its new value.",
+          "goal": "Explain how you would verify the value actually used by the process.",
+          "commands": []
+        },
+        {
+          "title": "Sensitive configuration",
+          "explanation": "A Kubernetes Secret is a sensitive API resource, not permission to print values in logs, lessons or chat. Base64 is an encoding, not encryption.",
+          "example": "An investigation can check key presence and access errors without exposing the credential.",
+          "goal": "Explain a useful diagnostic that avoids disclosing secret content.",
+          "commands": []
+        },
+        {
+          "title": "Validate before rollout",
+          "explanation": "Check required values and failure messages before changing a workload. A small scoped validation helps separate a bad value from a missing delivery mechanism.",
+          "example": "An app refuses to start until its required mode is valid.",
+          "goal": "Distinguish missing, invalid, and stale configuration.",
+          "commands": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "k8s-storage",
+    "deck": "kubernetes",
+    "kind": "recall",
+    "prompt": "Compare container restart and pod replacement for temporary data.; Identify evidence needed to distinguish storage binding from application startup failure.; Explain why persistence and recovery are separate requirements.",
+    "answer": "Container writable layers, emptyDir volumes, and persistent volumes have different lifetimes. Pod replacement is a critical boundary. A PVC requests storage with characteristics such as capacity, class and access mode. Pending storage can block a workload before its process starts. A persistent volume can preserve an accidental deletion or corruption just as faithfully as good data. Recovery needs separate backup and restore evidence.",
+    "fixture": null,
+    "allowed_commands": [],
+    "checks": null,
+    "keyword_groups": [],
+    "minimum_groups": null,
+    "teaching": {
+      "title": "Persistent storage and pod replacement",
+      "level": 3,
+      "why": "Understand which data survives a process or pod failure.",
+      "example": "An emptyDir survives a container restart within the same pod but not deletion of that pod.",
+      "steps": [
+        {
+          "title": "Volume lifetime",
+          "explanation": "Container writable layers, emptyDir volumes, and persistent volumes have different lifetimes. Pod replacement is a critical boundary.",
+          "example": "An emptyDir survives a container restart within the same pod but not deletion of that pod.",
+          "goal": "Compare container restart and pod replacement for temporary data.",
+          "commands": []
+        },
+        {
+          "title": "Claims and binding",
+          "explanation": "A PVC requests storage with characteristics such as capacity, class and access mode. Pending storage can block a workload before its process starts.",
+          "example": "A claim cannot bind if no compatible provisioner or volume is available.",
+          "goal": "Identify evidence needed to distinguish storage binding from application startup failure.",
+          "commands": []
+        },
+        {
+          "title": "Persistence is not backup",
+          "explanation": "A persistent volume can preserve an accidental deletion or corruption just as faithfully as good data. Recovery needs separate backup and restore evidence.",
+          "example": "A successful backup job is not proof a replacement service can restore and read it.",
+          "goal": "Explain why persistence and recovery are separate requirements.",
+          "commands": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "k8s-rbac",
+    "deck": "kubernetes",
+    "kind": "recall",
+    "prompt": "Distinguish authentication and authorization failure evidence.; Describe the smallest useful access for a log investigation.; Explain a positive and a negative authorization check.",
+    "answer": "Authentication establishes who is making a request; authorization decides whether that identity can perform the requested verb on a resource. RBAC permissions combine verbs, resources, identities and scope. A namespaced Role should match the actual operational task. A useful permission test checks required work succeeds and unrelated access remains denied. Avoid fixing every Forbidden response with cluster-admin.",
+    "fixture": null,
+    "allowed_commands": [],
+    "checks": null,
+    "keyword_groups": [],
+    "minimum_groups": null,
+    "teaching": {
+      "title": "Authorization through least privilege",
+      "level": 3,
+      "why": "Diagnose access failures without granting broad permissions.",
+      "example": "A Forbidden response can mean authentication worked but authorization denied the operation.",
+      "steps": [
+        {
+          "title": "Identity before permission",
+          "explanation": "Authentication establishes who is making a request; authorization decides whether that identity can perform the requested verb on a resource.",
+          "example": "A Forbidden response can mean authentication worked but authorization denied the operation.",
+          "goal": "Distinguish authentication and authorization failure evidence.",
+          "commands": []
+        },
+        {
+          "title": "Scope a permission",
+          "explanation": "RBAC permissions combine verbs, resources, identities and scope. A namespaced Role should match the actual operational task.",
+          "example": "The trainer runner can work with practice pods but cannot read production secrets.",
+          "goal": "Describe the smallest useful access for a log investigation.",
+          "commands": []
+        },
+        {
+          "title": "Verify denial as well as access",
+          "explanation": "A useful permission test checks required work succeeds and unrelated access remains denied. Avoid fixing every Forbidden response with cluster-admin.",
+          "example": "A namespace-scoped reader should list its intended pods and fail to list unrelated secrets.",
+          "goal": "Explain a positive and a negative authorization check.",
+          "commands": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "network-dns",
+    "deck": "networking",
+    "kind": "recall",
+    "prompt": "Explain what successful resolution proves and does not prove.; Explain why the failing client is the useful diagnostic vantage point.; Classify a symptom without claiming it identifies the full root cause.",
+    "answer": "A DNS answer maps a name to data such as addresses. It does not prove a service listens or serves requests at that address. Resolvers can apply search suffixes and cache responses. Different clients may therefore resolve or cache names differently. A lookup failure, connection refusal, timeout, and HTTP error occur at different points. Choose the next check based on the observed symptom.",
+    "fixture": null,
+    "allowed_commands": [],
+    "checks": null,
+    "keyword_groups": [],
+    "minimum_groups": null,
+    "teaching": {
+      "title": "DNS is one step in the request path",
+      "level": 2,
+      "why": "Separate service naming from transport and HTTP failures.",
+      "example": "A valid address can still lead to a refused TCP connection.",
+      "steps": [
+        {
+          "title": "Resolve a name",
+          "explanation": "A DNS answer maps a name to data such as addresses. It does not prove a service listens or serves requests at that address.",
+          "example": "A valid address can still lead to a refused TCP connection.",
+          "goal": "Explain what successful resolution proves and does not prove.",
+          "commands": []
+        },
+        {
+          "title": "Search paths and caching",
+          "explanation": "Resolvers can apply search suffixes and cache responses. Different clients may therefore resolve or cache names differently.",
+          "example": "A short Service name is meaningful within a Kubernetes namespace context.",
+          "goal": "Explain why the failing client is the useful diagnostic vantage point.",
+          "commands": []
+        },
+        {
+          "title": "Compare failure layers",
+          "explanation": "A lookup failure, connection refusal, timeout, and HTTP error occur at different points. Choose the next check based on the observed symptom.",
+          "example": "An HTTP 503 means a response arrived from an HTTP-speaking peer.",
+          "goal": "Classify a symptom without claiming it identifies the full root cause.",
+          "commands": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "network-tls",
+    "deck": "networking",
+    "kind": "recall",
+    "prompt": "Explain the roles of trust and hostname validation.; Name evidence that distinguishes expired, untrusted, and mismatched certificates.; Describe a recovery check that retains certificate verification.",
+    "answer": "TLS authenticates peers according to the configured trust model and protects data in transit. Encryption alone does not establish the intended identity. Validity times, intermediate certificates, and trust stores can differ across environments. Inspect the failing client conditions. Disabling verification removes an intended guarantee. Prefer correcting certificates, trust distribution, time or naming and then verifying a normal request.",
+    "fixture": null,
+    "allowed_commands": [],
+    "checks": null,
+    "keyword_groups": [],
+    "minimum_groups": null,
+    "teaching": {
+      "title": "TLS, certificates, and trust",
+      "level": 3,
+      "why": "Trace secure requests past browser-level assumptions.",
+      "example": "A server certificate must be trusted and match the name the client expects.",
+      "steps": [
+        {
+          "title": "Identity and encryption",
+          "explanation": "TLS authenticates peers according to the configured trust model and protects data in transit. Encryption alone does not establish the intended identity.",
+          "example": "A server certificate must be trusted and match the name the client expects.",
+          "goal": "Explain the roles of trust and hostname validation.",
+          "commands": []
+        },
+        {
+          "title": "Time and certificate chains",
+          "explanation": "Validity times, intermediate certificates, and trust stores can differ across environments. Inspect the failing client conditions.",
+          "example": "A browser and a minimal container can have different trust stores.",
+          "goal": "Name evidence that distinguishes expired, untrusted, and mismatched certificates.",
+          "commands": []
+        },
+        {
+          "title": "Avoid bypass as recovery",
+          "explanation": "Disabling verification removes an intended guarantee. Prefer correcting certificates, trust distribution, time or naming and then verifying a normal request.",
+          "example": "A request that succeeds only with verification disabled leaves the original trust problem unresolved.",
+          "goal": "Describe a recovery check that retains certificate verification.",
+          "commands": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "linux-inodes",
+    "deck": "linux",
+    "kind": "recall",
+    "prompt": "Explain why a write can fail despite free bytes.; Explain which filesystem must be inspected for a failing path.; Propose a scoped diagnostic and cleanup decision without blanket deletion.",
+    "answer": "A filesystem tracks allocation and file metadata. On filesystems with finite inode pools, free bytes do not guarantee capacity for another file. Directory usage describes reachable entries; filesystem reports describe a mounted filesystem. Check paths and mount boundaries before comparing numbers. Identify the owner and retention policy before removing data. A safe cleanup verifies what can be recreated and whether writers still hold files open.",
+    "fixture": null,
+    "allowed_commands": [],
+    "checks": null,
+    "keyword_groups": [],
+    "minimum_groups": null,
+    "teaching": {
+      "title": "Disk space versus inode exhaustion",
+      "level": 2,
+      "why": "Understand why small files can prevent new writes.",
+      "example": "Many tiny files can exhaust available inodes while leaving byte capacity.",
+      "steps": [
+        {
+          "title": "Bytes and file metadata",
+          "explanation": "A filesystem tracks allocation and file metadata. On filesystems with finite inode pools, free bytes do not guarantee capacity for another file.",
+          "example": "Many tiny files can exhaust available inodes while leaving byte capacity.",
+          "goal": "Explain why a write can fail despite free bytes.",
+          "commands": []
+        },
+        {
+          "title": "Measure the right boundary",
+          "explanation": "Directory usage describes reachable entries; filesystem reports describe a mounted filesystem. Check paths and mount boundaries before comparing numbers.",
+          "example": "A directory can sit on a different mount from the path whose write failed.",
+          "goal": "Explain which filesystem must be inspected for a failing path.",
+          "commands": []
+        },
+        {
+          "title": "Bound the cleanup",
+          "explanation": "Identify the owner and retention policy before removing data. A safe cleanup verifies what can be recreated and whether writers still hold files open.",
+          "example": "Removing active application files can break recovery or leave open deleted allocations.",
+          "goal": "Propose a scoped diagnostic and cleanup decision without blanket deletion.",
+          "commands": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "linux-signals",
+    "deck": "linux",
+    "kind": "recall",
+    "prompt": "Explain why a process name alone is insufficient targeting evidence.; Explain why an immediate forced kill can interrupt useful work.; Explain what lifecycle owner you would inspect before intervening.",
+    "answer": "A process has a PID, parent, user and command. Names can repeat, so identify the intended process before acting. SIGTERM requests termination and can be handled so the process drains work. SIGKILL cannot be handled for cleanup. A supervisor or orchestrator can restart an exited process. Fixing desired configuration may be more effective than repeatedly killing the current PID.",
+    "fixture": null,
+    "allowed_commands": [],
+    "checks": null,
+    "keyword_groups": [],
+    "minimum_groups": null,
+    "teaching": {
+      "title": "Processes and graceful termination",
+      "level": 2,
+      "why": "Recover processes without unnecessarily discarding work.",
+      "example": "Two workers can have the same executable but different parents and responsibilities.",
+      "steps": [
+        {
+          "title": "Process identity",
+          "explanation": "A process has a PID, parent, user and command. Names can repeat, so identify the intended process before acting.",
+          "example": "Two workers can have the same executable but different parents and responsibilities.",
+          "goal": "Explain why a process name alone is insufficient targeting evidence.",
+          "commands": []
+        },
+        {
+          "title": "Graceful shutdown",
+          "explanation": "SIGTERM requests termination and can be handled so the process drains work. SIGKILL cannot be handled for cleanup.",
+          "example": "A service stops accepting new requests before completing existing ones.",
+          "goal": "Explain why an immediate forced kill can interrupt useful work.",
+          "commands": []
+        },
+        {
+          "title": "Check the supervisor",
+          "explanation": "A supervisor or orchestrator can restart an exited process. Fixing desired configuration may be more effective than repeatedly killing the current PID.",
+          "example": "A Kubernetes controller creates a replacement pod after deletion.",
+          "goal": "Explain what lifecycle owner you would inspect before intervening.",
+          "commands": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "linux-saturation",
+    "deck": "linux",
+    "kind": "recall",
+    "prompt": "Explain what additional observation makes high utilization actionable.; Separate container pressure from node-wide pressure.; Form a bottleneck hypothesis supported by more than one signal.",
+    "answer": "Utilization measures how busy a resource is; saturation concerns queued or delayed work because capacity is constrained. Cache can be reclaimable, while application working sets and limits can create pressure. System-wide free memory is not the same as a container limit. Storage and network waits can limit throughput while CPU appears idle. Compare latency, queueing, throughput and workload changes.",
+    "fixture": null,
+    "allowed_commands": [],
+    "checks": null,
+    "keyword_groups": [],
+    "minimum_groups": null,
+    "teaching": {
+      "title": "CPU, memory, and I/O saturation",
+      "level": 3,
+      "why": "Identify the limiting resource rather than guessing from one percentage.",
+      "example": "High CPU with acceptable latency differs from runnable work accumulating and requests missing deadlines.",
+      "steps": [
+        {
+          "title": "Utilization and saturation differ",
+          "explanation": "Utilization measures how busy a resource is; saturation concerns queued or delayed work because capacity is constrained.",
+          "example": "High CPU with acceptable latency differs from runnable work accumulating and requests missing deadlines.",
+          "goal": "Explain what additional observation makes high utilization actionable.",
+          "commands": []
+        },
+        {
+          "title": "Memory needs context",
+          "explanation": "Cache can be reclaimable, while application working sets and limits can create pressure. System-wide free memory is not the same as a container limit.",
+          "example": "A container can hit its memory limit while the node still has available memory.",
+          "goal": "Separate container pressure from node-wide pressure.",
+          "commands": []
+        },
+        {
+          "title": "I/O can dominate latency",
+          "explanation": "Storage and network waits can limit throughput while CPU appears idle. Compare latency, queueing, throughput and workload changes.",
+          "example": "Request latency grows when a storage device queue grows even though CPU stays moderate.",
+          "goal": "Form a bottleneck hypothesis supported by more than one signal.",
+          "commands": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "observability-tracing",
+    "deck": "observability",
+    "kind": "recall",
+    "prompt": "Explain how a slow downstream span contributes to a request timeline.; Choose a signal for scope and another for detailed investigation.; Explain the limits of one sampled trace before generalizing it.",
+    "answer": "A trace groups related operations; spans carry timing and relationships. The useful boundary follows the user journey across services. Logs supply event details, metrics aggregate behavior, and traces show paths for sampled requests. Each answers different questions. Missing traces can reflect sampling or broken propagation, not absence of requests. Context propagation must be validated across boundaries.",
+    "fixture": null,
+    "allowed_commands": [],
+    "checks": null,
+    "keyword_groups": [],
+    "minimum_groups": null,
+    "teaching": {
+      "title": "Follow one user journey with traces",
+      "level": 3,
+      "why": "Extend frontend debugging through downstream services.",
+      "example": "A checkout request includes API, cache and database spans.",
+      "steps": [
+        {
+          "title": "Spans describe operations",
+          "explanation": "A trace groups related operations; spans carry timing and relationships. The useful boundary follows the user journey across services.",
+          "example": "A checkout request includes API, cache and database spans.",
+          "goal": "Explain how a slow downstream span contributes to a request timeline.",
+          "commands": []
+        },
+        {
+          "title": "Correlate signals",
+          "explanation": "Logs supply event details, metrics aggregate behavior, and traces show paths for sampled requests. Each answers different questions.",
+          "example": "A latency histogram shows a tail regression while a trace suggests which dependency consumed time.",
+          "goal": "Choose a signal for scope and another for detailed investigation.",
+          "commands": []
+        },
+        {
+          "title": "Sampling limits evidence",
+          "explanation": "Missing traces can reflect sampling or broken propagation, not absence of requests. Context propagation must be validated across boundaries.",
+          "example": "An async worker may start an unlinked trace when context was not carried through its queue.",
+          "goal": "Explain the limits of one sampled trace before generalizing it.",
+          "commands": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "observability-promql",
+    "deck": "observability",
+    "kind": "recall",
+    "prompt": "Explain why a time-bounded failure rate is more operationally useful.; Explain both ratio and volume in an incident update.; Explain what information was lost by averaging percentile summaries.",
+    "answer": "A counter accumulates events and can reset when its process restarts. Rates describe change over time rather than the absolute total. An error ratio needs matching request populations and windows. A tiny sample can produce a large percentage with limited scope. Percentiles summarize distributions and cannot generally be combined by averaging their values. Preserve histogram distributions where aggregation is required.",
+    "fixture": null,
+    "allowed_commands": [],
+    "checks": null,
+    "keyword_groups": [],
+    "minimum_groups": null,
+    "teaching": {
+      "title": "Counters, rates, and latency distributions",
+      "level": 3,
+      "why": "Read operational measurements without hiding user impact.",
+      "example": "Ten thousand total failures says little about whether the service is failing now.",
+      "steps": [
+        {
+          "title": "Counters and rates",
+          "explanation": "A counter accumulates events and can reset when its process restarts. Rates describe change over time rather than the absolute total.",
+          "example": "Ten thousand total failures says little about whether the service is failing now.",
+          "goal": "Explain why a time-bounded failure rate is more operationally useful.",
+          "commands": []
+        },
+        {
+          "title": "Choose a denominator",
+          "explanation": "An error ratio needs matching request populations and windows. A tiny sample can produce a large percentage with limited scope.",
+          "example": "One failure in two requests differs in impact from half a million failures in a million requests.",
+          "goal": "Explain both ratio and volume in an incident update.",
+          "commands": []
+        },
+        {
+          "title": "Do not average percentiles",
+          "explanation": "Percentiles summarize distributions and cannot generally be combined by averaging their values. Preserve histogram distributions where aggregation is required.",
+          "example": "Two instances with different traffic volumes cannot yield a valid fleet p99 by averaging their p99 values.",
+          "goal": "Explain what information was lost by averaging percentile summaries.",
+          "commands": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "cloud-iam",
+    "deck": "cloud",
+    "kind": "recall",
+    "prompt": "Describe the intended identity and smallest operational scope.; Explain how to investigate renewal without printing token values.; Propose an evidence-based permission investigation without blanket grants.",
+    "answer": "An application identity should represent its task and environment. Human administrator credentials are a poor default for a running workload. Short-lived credentials reduce the lifetime of a leaked credential, but renewal and clock failures become operational concerns. Permission changes should be attributable and verified. An access failure can result from explicit denial, resource policy, identity policy or context.",
+    "fixture": null,
+    "allowed_commands": [],
+    "checks": null,
+    "keyword_groups": [],
+    "minimum_groups": null,
+    "teaching": {
+      "title": "Cloud identities and permission boundaries",
+      "level": 3,
+      "why": "Transfer least-privilege reasoning across vendors.",
+      "example": "A service needs access to one storage prefix, not every account resource.",
+      "steps": [
+        {
+          "title": "Workload identity",
+          "explanation": "An application identity should represent its task and environment. Human administrator credentials are a poor default for a running workload.",
+          "example": "A service needs access to one storage prefix, not every account resource.",
+          "goal": "Describe the intended identity and smallest operational scope.",
+          "commands": []
+        },
+        {
+          "title": "Temporary credentials",
+          "explanation": "Short-lived credentials reduce the lifetime of a leaked credential, but renewal and clock failures become operational concerns.",
+          "example": "A healthy service can begin receiving authorization errors when its credential renewal fails.",
+          "goal": "Explain how to investigate renewal without printing token values.",
+          "commands": []
+        },
+        {
+          "title": "Audit changes",
+          "explanation": "Permission changes should be attributable and verified. An access failure can result from explicit denial, resource policy, identity policy or context.",
+          "example": "A previously working request begins failing after a policy deployment.",
+          "goal": "Propose an evidence-based permission investigation without blanket grants.",
+          "commands": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "cloud-failure-domains",
+    "deck": "cloud",
+    "kind": "recall",
+    "prompt": "Explain which failure a proposed replica arrangement survives.; Separate optional functionality from correctness-critical dependencies.; Describe evidence needed before claiming a failure-domain design works.",
+    "answer": "Replicas only help against failures they do not share. Nodes, zones, control planes, networks and credentials can create common failure points. A service can preserve a critical function while reducing optional work. Decide which behavior remains safe and useful during dependency failures. A design claim needs a bounded failure exercise and observable success criteria. Check recovery capacity and dependencies under the degraded condition.",
+    "fixture": null,
+    "allowed_commands": [],
+    "checks": null,
+    "keyword_groups": [],
+    "minimum_groups": null,
+    "teaching": {
+      "title": "Failure domains and correlated outages",
+      "level": 4,
+      "why": "Evaluate redundancy against the failures it actually survives.",
+      "example": "Three replicas on one node do not survive that node failing.",
+      "steps": [
+        {
+          "title": "Locate shared dependencies",
+          "explanation": "Replicas only help against failures they do not share. Nodes, zones, control planes, networks and credentials can create common failure points.",
+          "example": "Three replicas on one node do not survive that node failing.",
+          "goal": "Explain which failure a proposed replica arrangement survives.",
+          "commands": []
+        },
+        {
+          "title": "Design degradation",
+          "explanation": "A service can preserve a critical function while reducing optional work. Decide which behavior remains safe and useful during dependency failures.",
+          "example": "Checkout may continue with cached recommendations disabled, while payment correctness remains mandatory.",
+          "goal": "Separate optional functionality from correctness-critical dependencies.",
+          "commands": []
+        },
+        {
+          "title": "Exercise recovery",
+          "explanation": "A design claim needs a bounded failure exercise and observable success criteria. Check recovery capacity and dependencies under the degraded condition.",
+          "example": "The remaining zone may lack capacity even though replicas nominally span zones.",
+          "goal": "Describe evidence needed before claiming a failure-domain design works.",
+          "commands": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "sre-incident-roles",
+    "deck": "sre",
+    "kind": "recall",
+    "prompt": "Explain when to separate coordination from hands-on repair.; Write a short update with clear facts and uncertainty.; Describe the minimum context required to continue safely.",
+    "answer": "Incident command coordinates priorities, operations investigates and mitigates, and communication keeps stakeholders informed. Small incidents may combine roles explicitly. State impact, known observations, current action and next update. Distinguish a hypothesis from a confirmed cause and avoid invented restoration times. A useful handoff includes timeline, evidence, changes, remaining risks and ownership. The next responder should not have to rediscover what already failed.",
+    "fixture": null,
+    "allowed_commands": [],
+    "checks": null,
+    "keyword_groups": [],
+    "minimum_groups": null,
+    "teaching": {
+      "title": "Incident command, operations, and communication",
+      "level": 4,
+      "why": "Use senior collaboration skills during uncertain operational work.",
+      "example": "Two responders changing the same system independently can make evidence harder to interpret.",
+      "steps": [
+        {
+          "title": "Assign responsibilities",
+          "explanation": "Incident command coordinates priorities, operations investigates and mitigates, and communication keeps stakeholders informed. Small incidents may combine roles explicitly.",
+          "example": "Two responders changing the same system independently can make evidence harder to interpret.",
+          "goal": "Explain when to separate coordination from hands-on repair.",
+          "commands": []
+        },
+        {
+          "title": "Communicate uncertainty",
+          "explanation": "State impact, known observations, current action and next update. Distinguish a hypothesis from a confirmed cause and avoid invented restoration times.",
+          "example": "Checkout failures increased; database saturation is a hypothesis under investigation.",
+          "goal": "Write a short update with clear facts and uncertainty.",
+          "commands": []
+        },
+        {
+          "title": "Hand off durable context",
+          "explanation": "A useful handoff includes timeline, evidence, changes, remaining risks and ownership. The next responder should not have to rediscover what already failed.",
+          "example": "A shift change occurs while a partial mitigation is running.",
+          "goal": "Describe the minimum context required to continue safely.",
+          "commands": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "sre-automation",
+    "deck": "sre",
+    "kind": "recall",
+    "prompt": "Explain the desired state and what a second execution should do.; Explain how to distinguish safe retry from duplicate side effects.; Describe tests and outcome evidence for an operational automation change.",
+    "answer": "Automation should have a concrete desired outcome and clear scope. Repeated execution must not accidentally repeat a harmful side effect. External actions can succeed even when their response is lost. Record intent and inspect observed state before retrying uncertain changes. Measure the burden removed, failure handling, maintainability and blast radius. Automating a bad process can make its mistakes faster.",
+    "fixture": null,
+    "allowed_commands": [],
+    "checks": null,
+    "keyword_groups": [],
+    "minimum_groups": null,
+    "teaching": {
+      "title": "Build recovery tools that are safe to repeat",
+      "level": 4,
+      "why": "Apply existing software engineering strength to operational work.",
+      "example": "A recovery tool ensures one intended deployment version instead of blindly recreating resources.",
+      "steps": [
+        {
+          "title": "Define the invariant",
+          "explanation": "Automation should have a concrete desired outcome and clear scope. Repeated execution must not accidentally repeat a harmful side effect.",
+          "example": "A recovery tool ensures one intended deployment version instead of blindly recreating resources.",
+          "goal": "Explain the desired state and what a second execution should do.",
+          "commands": []
+        },
+        {
+          "title": "Handle partial failure",
+          "explanation": "External actions can succeed even when their response is lost. Record intent and inspect observed state before retrying uncertain changes.",
+          "example": "A timed-out request may have completed remotely.",
+          "goal": "Explain how to distinguish safe retry from duplicate side effects.",
+          "commands": []
+        },
+        {
+          "title": "Prove operational value",
+          "explanation": "Measure the burden removed, failure handling, maintainability and blast radius. Automating a bad process can make its mistakes faster.",
+          "example": "A recovery script saves time but needs an audit trail and a bounded target set.",
+          "goal": "Describe tests and outcome evidence for an operational automation change.",
+          "commands": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "sre-frontend-journey",
+    "deck": "sre",
+    "kind": "recall",
+    "prompt": "Define a success event and its measurement boundary.; Explain which observation tests the critical journey rather than a convenient proxy.; Defend a reliability investment with evidence and tradeoffs.",
+    "answer": "A page load or HTTP response is not necessarily completion of the user task. Choose a measurable critical journey. Map the request through client, CDN, proxy, API and data systems. Caches can make synthetic and real-user observations differ. Use user impact, frequency, recovery difficulty and engineering cost to compare improvements. Carry stakeholder communication and design judgment into the decision.",
+    "fixture": null,
+    "allowed_commands": [],
+    "checks": null,
+    "keyword_groups": [],
+    "minimum_groups": null,
+    "teaching": {
+      "title": "Use a frontend journey as a reliability boundary",
+      "level": 4,
+      "why": "Connect familiar user experience to end-to-end service ownership.",
+      "example": "A successful checkout includes a correct confirmed order, not just a 200 from the page shell.",
+      "steps": [
+        {
+          "title": "Define success from the user",
+          "explanation": "A page load or HTTP response is not necessarily completion of the user task. Choose a measurable critical journey.",
+          "example": "A successful checkout includes a correct confirmed order, not just a 200 from the page shell.",
+          "goal": "Define a success event and its measurement boundary.",
+          "commands": []
+        },
+        {
+          "title": "Trace dependencies",
+          "explanation": "Map the request through client, CDN, proxy, API and data systems. Caches can make synthetic and real-user observations differ.",
+          "example": "A cached page loads while a checkout API is unavailable.",
+          "goal": "Explain which observation tests the critical journey rather than a convenient proxy.",
+          "commands": []
+        },
+        {
+          "title": "Prioritize reliability work",
+          "explanation": "Use user impact, frequency, recovery difficulty and engineering cost to compare improvements. Carry stakeholder communication and design judgment into the decision.",
+          "example": "Reducing a recurring checkout outage may be more valuable than optimizing an already healthy static asset path.",
+          "goal": "Defend a reliability investment with evidence and tradeoffs.",
+          "commands": []
+        }
+      ]
     }
   }
 ]

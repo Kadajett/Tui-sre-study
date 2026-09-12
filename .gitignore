@@ -12,3 +12,5 @@ __pycache__/
 *.key
 *.zip
 *.tar.gz
+
+.credentials/
