@@ -1,0 +1,1539 @@
+[
+  {
+    "id": "linux-du-1",
+    "deck": "linux",
+    "kind": "command",
+    "prompt": "A fixture has logs, cache, and empty directories. Use du to show a human-readable summary for each immediate child.",
+    "answer": "A strong answer is `du -h --max-depth=1 .` (GNU) or `du -hd1 .`. `du` walks allocated file blocks, not filesystem capacity.",
+    "fixture": "disk_usage",
+    "allowed_commands": [
+      "du"
+    ],
+    "checks": {
+      "exit": 0,
+      "contains": [
+        "logs",
+        "cache",
+        "empty"
+      ]
+    },
+    "teaching": {
+      "title": "Disk usage: build up du",
+      "why": "Disk investigations start by measuring which directories account for space.",
+      "example": "Run du, then add one option at a time in the practice tree.",
+      "level": 1
+    }
+  },
+  {
+    "id": "linux-grep-1",
+    "deck": "linux",
+    "kind": "command",
+    "prompt": "Print every ERROR line from app.log.",
+    "answer": "`grep ERROR app.log` filters matching lines. Add `-n` when line numbers help incident evidence.",
+    "fixture": "log_search",
+    "allowed_commands": [
+      "grep"
+    ],
+    "checks": {
+      "exit": 0,
+      "contains": [
+        "database timeout",
+        "upstream 502"
+      ]
+    },
+    "teaching": {
+      "title": "Find evidence in logs with grep",
+      "why": "An incident log can contain thousands of harmless messages around one useful error.",
+      "example": "If app.log contains INFO boot and ERROR database timeout, grep ERROR app.log prints just the error line. grep -n ERROR app.log also shows its line number.",
+      "level": 1,
+      "steps": [
+        {
+          "title": "Find matching log lines",
+          "explanation": "`grep` selects lines containing a pattern. Start with a literal word before adding options. Our disposable `app.log` contains two INFO and two ERROR lines.",
+          "commands": [
+            "grep ERROR app.log"
+          ],
+          "example": "```text\nERROR database timeout\nERROR upstream 502\n```",
+          "goal": "Find ERROR lines in app.log and explain that matching whole lines are printed."
+        },
+        {
+          "title": "Add line numbers with -n",
+          "explanation": "Keep the pattern and filename. `-n` prefixes each match with its original line number so you can locate it in a larger log.",
+          "commands": [
+            "grep -n ERROR app.log"
+          ],
+          "example": "```text\n2:ERROR database timeout\n4:ERROR upstream 502\n```",
+          "goal": "Add line numbers while preserving the ERROR filter."
+        },
+        {
+          "title": "Ignore letter case with -i",
+          "explanation": "`ERROR` and `error` differ by default. Add `-i` to match either spelling. Keep `-n` for useful locations.",
+          "commands": [
+            "grep -ni error app.log",
+            "grep -n -i error app.log"
+          ],
+          "example": "```text\n2:ERROR database timeout\n4:ERROR upstream 502\n```",
+          "goal": "Find case-insensitive error lines with line numbers."
+        },
+        {
+          "title": "Count matching lines with -c",
+          "explanation": "Replace numbered output with a count. `-c` counts matching lines, not occurrences within one line.",
+          "commands": [
+            "grep -c ERROR app.log"
+          ],
+          "example": "```text\n2\n```",
+          "goal": "Count matching ERROR lines without printing each line."
+        }
+      ]
+    }
+  },
+  {
+    "id": "linux-jq-1",
+    "deck": "linux",
+    "kind": "command",
+    "prompt": "Use jq to print the route from every JSON object in events.jsonl.",
+    "answer": "`jq -r .route events.jsonl` parses each JSON line and emits raw route strings.",
+    "fixture": "json_logs",
+    "allowed_commands": [
+      "jq"
+    ],
+    "checks": {
+      "exit": 0,
+      "contains": [
+        "/health",
+        "/checkout",
+        "/orders"
+      ]
+    },
+    "teaching": {
+      "title": "Read structured logs with jq",
+      "why": "JSON has fields and types; treating it as arbitrary text can hide the signal.",
+      "example": "For {\"level\":\"error\",\"route\":\"/checkout\"}, jq -r .route prints /checkout without JSON quotes. The same expression works on each JSON line.",
+      "level": 1,
+      "steps": [
+        {
+          "title": "Read JSON with jq",
+          "explanation": "`jq` reads JSON values and applies a filter. The identity filter `.` prints each value without changing it. `events.jsonl` has one JSON event per line.",
+          "commands": [
+            "jq . events.jsonl"
+          ],
+          "example": "```json\n{\"level\":\"info\",\"route\":\"/health\"}\n{\"level\":\"error\",\"route\":\"/checkout\"}\n{\"level\":\"info\",\"route\":\"/orders\"}\n```",
+          "goal": "Run the identity filter on JSON lines and observe the fields."
+        },
+        {
+          "title": "Choose one field",
+          "explanation": "Replace `.` with `.level`. The leading dot means the current JSON value; the field name selects one property.",
+          "commands": [
+            "jq .level events.jsonl"
+          ],
+          "example": "```json\n\"info\"\n\"error\"\n\"info\"\n```",
+          "goal": "Select the level field from every event."
+        },
+        {
+          "title": "Select matching objects",
+          "explanation": "`select(...)` keeps an entire object only when its condition is true. Single shell quotes keep the filter together and preserve its double quotes.",
+          "commands": [
+            "jq 'select(.level==\"error\")' events.jsonl"
+          ],
+          "example": "```json\n{\"level\":\"error\",\"route\":\"/checkout\"}\n```",
+          "goal": "Keep only error events with select."
+        },
+        {
+          "title": "Print raw strings with -r",
+          "explanation": "A JSON string includes quotes. `-r` prints string results as plain text, which is useful when reading paths or passing values to another tool.",
+          "commands": [
+            "jq -r .route events.jsonl"
+          ],
+          "example": "```text\n/health\n/checkout\n/orders\n```",
+          "goal": "Print route strings without JSON quotes."
+        }
+      ]
+    }
+  },
+  {
+    "id": "linux-chmod-1",
+    "deck": "linux",
+    "kind": "command",
+    "prompt": "deploy.sh has mode 640. Make it executable for its owner without changing group or other permissions. The trainer checks the resulting file mode.",
+    "answer": "`chmod u+x deploy.sh` changes mode 640 to 740. chmod is normally silent; empty stdout with exit 0 is expected. The trainer also checks the actual file permissions.",
+    "fixture": "permissions",
+    "allowed_commands": [
+      "chmod"
+    ],
+    "checks": {
+      "exit": 0,
+      "contains": []
+    },
+    "teaching": {
+      "title": "Understand file permissions",
+      "why": "Deployment failures are often about which user can read or execute a file.",
+      "example": "Mode 640 gives the owner read/write, the group read, and others nothing. chmod u+x deploy.sh adds only the owner execute bit, resulting in 740.",
+      "level": 1,
+      "steps": [
+        {
+          "title": "Add owner execute permission",
+          "explanation": "The fixture `deploy.sh` starts with mode 640: owner read/write, group read, others none. `u+x` adds execute for the owner only. Each attempt gets a fresh fixture.",
+          "commands": [
+            "chmod u+x deploy.sh"
+          ],
+          "example": "```text\nBefore: rw-r----- (640)\nAfter:  rwxr----- (740)\n```",
+          "goal": "Add execute for the owner without granting access to others."
+        },
+        {
+          "title": "Express permissions numerically",
+          "explanation": "Read is 4, write is 2, execute is 1. The three digits are owner, group, others: 7 means 4+2+1, 4 means read, 0 means no permissions.",
+          "commands": [
+            "chmod 740 deploy.sh"
+          ],
+          "example": "```text\n7: owner rwx\n4: group r--\n0: others ---\n```",
+          "goal": "Set exactly owner rwx, group r, and no access for others."
+        },
+        {
+          "title": "Set explicit symbolic permissions",
+          "explanation": "The equals sign assigns the complete permission set for each class. An empty `o=` removes every permission for others. This reaches the same 740 result without octal arithmetic.",
+          "commands": [
+            "chmod u=rwx,g=r,o= deploy.sh"
+          ],
+          "example": "```text\nu=rwx  g=r--  o=---\n```",
+          "goal": "Express the same least-access permissions symbolically."
+        }
+      ]
+    }
+  },
+  {
+    "id": "linux-ps-1",
+    "deck": "linux",
+    "kind": "command",
+    "prompt": "Show the live process table in the container using ps.",
+    "answer": "`ps aux` gives a broad BSD-style process listing. In incidents, choose fields intentionally with `ps -eo pid,ppid,stat,%cpu,%mem,cmd`.",
+    "fixture": "processes",
+    "allowed_commands": [
+      "ps"
+    ],
+    "checks": {
+      "exit": 0,
+      "contains": [
+        "PID"
+      ]
+    },
+    "teaching": {
+      "title": "Look at running processes",
+      "why": "A service is ultimately a process with a PID, state and resource consumption.",
+      "example": "In ps aux, PID identifies the process and COMMAND tells you what started it. Start by finding your service; a busy process is a lead, not proof of a root cause.",
+      "level": 1,
+      "steps": [
+        {
+          "title": "Meet the process table",
+          "explanation": "`ps` takes a snapshot of processes visible to the current user and terminal selection. PID identifies a process, TIME is accumulated CPU time, and CMD is its command. Inside this lab you see container processes.",
+          "commands": [
+            "ps"
+          ],
+          "example": "```text\nPID TTY          TIME CMD\n  1 pts/0    00:00:00 sre-trainer\n```",
+          "goal": "Run ps and identify the PID and command columns."
+        },
+        {
+          "title": "Include every visible process",
+          "explanation": "`-e` widens the selection to all processes visible inside this container. It does not reveal processes hidden by the container PID namespace.",
+          "commands": [
+            "ps -e"
+          ],
+          "example": "```text\nPID TTY          TIME CMD\n  1 pts/0    00:00:00 sre-trainer\n 42 ?        00:00:00 ps\n```",
+          "goal": "Widen process selection with -e."
+        },
+        {
+          "title": "Add resource and owner columns",
+          "explanation": "`ps aux` uses BSD-style options without a dash. It adds the owner, CPU and memory percentages, process state, and command. These are a snapshot, not a historical diagnosis.",
+          "commands": [
+            "ps aux"
+          ],
+          "example": "```text\nUSER PID %CPU %MEM VSZ RSS TTY STAT START TIME COMMAND\n```",
+          "goal": "Display the resource/owner view and distinguish CPU, memory and command columns."
+        }
+      ]
+    }
+  },
+  {
+    "id": "network-ip-addr",
+    "deck": "networking",
+    "kind": "command",
+    "prompt": "Inspect interface addresses, readable summaries, IPv4 addresses, and routes without modifying networking.",
+    "answer": "`ip addr` shows interface addresses. `-brief` summarizes them, `-4` restricts to IPv4, and `ip route` shows routing decisions. The practice commands inspect only this container.",
+    "fixture": "network",
+    "allowed_commands": [
+      "ip"
+    ],
+    "checks": {
+      "exit": 0,
+      "contains": []
+    },
+    "keyword_groups": [],
+    "minimum_groups": null,
+    "teaching": {
+      "title": "ip: addresses and routes",
+      "why": "Understand which interface, address and route a service can use before investigating connectivity.",
+      "example": "An interface can exist without a usable IP address. A default route identifies where traffic goes when no more-specific route matches.",
+      "level": 1,
+      "steps": [
+        {
+          "title": "Meet ip addr",
+          "explanation": "`ip addr` lists interfaces and their addresses. `lo` is loopback. `inet` marks an IPv4 address and `inet6` an IPv6 address. Read the interface heading, then its address lines. This inspects the practice container only.",
+          "commands": [
+            "ip addr",
+            "ip address"
+          ],
+          "example": "```text\n1: lo: <LOOPBACK,UP,LOWER_UP>\n    inet 127.0.0.1/8 scope host lo\n```",
+          "goal": "Inspect interface names and address families."
+        },
+        {
+          "title": "Make addresses easier to scan",
+          "explanation": "Add `-brief` before the object name. Each interface now occupies one short line with its state and addresses. A state alone is not proof that a remote service is reachable.",
+          "commands": [
+            "ip -brief addr",
+            "ip -br addr"
+          ],
+          "example": "```text\nlo UNKNOWN 127.0.0.1/8 ::1/128\n```",
+          "goal": "Use the brief address view."
+        },
+        {
+          "title": "Focus on IPv4",
+          "explanation": "Keep the brief view and add `-4`. This filters the displayed address family; it does not turn off IPv6 or change network configuration.",
+          "commands": [
+            "ip -4 -brief addr",
+            "ip -4 -br addr"
+          ],
+          "example": "```text\nlo UNKNOWN 127.0.0.1/8\n```",
+          "goal": "Show IPv4 addresses in a readable summary."
+        },
+        {
+          "title": "Inspect the routing table",
+          "explanation": "Change the object from `addr` to `route`. Addresses describe interfaces; routes tell the kernel where to send packets. A default route is used when no more-specific destination route matches.",
+          "commands": [
+            "ip route"
+          ],
+          "example": "```text\ndefault via 172.18.0.1 dev eth0\n172.18.0.0/16 dev eth0 proto kernel scope link\n```",
+          "goal": "Inspect routes and distinguish the default route from a connected network."
+        }
+      ]
+    }
+  },
+  {
+    "id": "linux-du-df",
+    "deck": "linux",
+    "kind": "recall",
+    "prompt": "du and df disagree badly. Name the first Linux condition you would investigate and the command that exposes it.",
+    "answer": "A deleted file can remain allocated while a process holds it open. Check with `lsof +L1`. Also check inode exhaustion with `df -i`.",
+    "keyword_groups": [
+      [
+        "deleted",
+        "unlinked"
+      ],
+      [
+        "open",
+        "descriptor",
+        "process"
+      ],
+      [
+        "lsof +l1",
+        "lsof"
+      ]
+    ],
+    "minimum_groups": 2,
+    "teaching": {
+      "title": "Why du and df can disagree",
+      "why": "Directory totals and filesystem allocation answer different questions.",
+      "example": "A service keeps writing to a log after someone deletes its directory entry. du can no longer see its name, but df still counts its allocated space until the process closes it.",
+      "level": 2
+    }
+  },
+  {
+    "id": "linux-memory",
+    "deck": "linux",
+    "kind": "recall",
+    "prompt": "Why is the `free` column from `free -h` usually the wrong number to panic over?",
+    "answer": "Linux uses otherwise idle RAM for reclaimable cache. `available` estimates memory usable without swapping, so it is the better first signal.",
+    "keyword_groups": [
+      [
+        "cache",
+        "cached"
+      ],
+      [
+        "available"
+      ],
+      [
+        "reclaim",
+        "reuse"
+      ]
+    ],
+    "minimum_groups": 2,
+    "teaching": {
+      "title": "Available memory and reclaimable cache",
+      "why": "Linux deliberately uses idle RAM, so a low free value alone is not an incident.",
+      "example": "A host with 1 GiB free and 8 GiB available may be holding reclaimable file cache. Start with available, pressure and application symptoms before deciding it needs more RAM.",
+      "level": 2
+    }
+  },
+  {
+    "id": "network-layers",
+    "deck": "networking",
+    "kind": "recall",
+    "prompt": "DNS resolves, but HTTPS fails. Give your troubleshooting order by layer.",
+    "answer": "DNS \u2192 routing/connectivity \u2192 TCP \u2192 TLS \u2192 HTTP \u2192 application. Prove each boundary before moving upward.",
+    "keyword_groups": [
+      [
+        "dns"
+      ],
+      [
+        "route",
+        "routing",
+        "connectivity"
+      ],
+      [
+        "tcp"
+      ],
+      [
+        "tls"
+      ],
+      [
+        "http"
+      ],
+      [
+        "application",
+        "app"
+      ]
+    ],
+    "minimum_groups": 5,
+    "teaching": {
+      "title": "Follow a request through network layers",
+      "why": "Proving one boundary at a time prevents random configuration changes.",
+      "example": "A hostname can resolve successfully while the TCP connection to port 443 is refused. That proves DNS worked for this attempt; it does not prove the listener is available.",
+      "level": 2
+    }
+  },
+  {
+    "id": "network-502",
+    "deck": "networking",
+    "kind": "recall",
+    "prompt": "Give the operational distinction between HTTP 502, 503, and 504.",
+    "answer": "502 means an invalid upstream response, 503 means unavailable/no healthy capacity, and 504 means the upstream timed out.",
+    "keyword_groups": [
+      [
+        "502",
+        "bad upstream",
+        "invalid upstream"
+      ],
+      [
+        "503",
+        "unavailable",
+        "capacity",
+        "healthy"
+      ],
+      [
+        "504",
+        "timeout",
+        "timed out"
+      ]
+    ],
+    "minimum_groups": 3,
+    "teaching": {
+      "title": "Distinguish gateway failures",
+      "why": "A status code tells you which part of a request path needs evidence next.",
+      "example": "A proxy waits for a backend until its deadline and sends 504. Inspect upstream latency and the timeout boundary before changing DNS or client code.",
+      "level": 2
+    }
+  },
+  {
+    "id": "network-exhaustion",
+    "deck": "networking",
+    "kind": "recall",
+    "prompt": "CPU is low but new outbound connections fail. Name four resources that could be exhausted.",
+    "answer": "File descriptors, ephemeral ports, NAT table entries, sockets, connection pools, or backend connection limits.",
+    "keyword_groups": [
+      [
+        "file descriptor",
+        "fd"
+      ],
+      [
+        "ephemeral port",
+        "ports"
+      ],
+      [
+        "nat"
+      ],
+      [
+        "socket"
+      ],
+      [
+        "pool"
+      ],
+      [
+        "backend",
+        "limit"
+      ]
+    ],
+    "minimum_groups": 4,
+    "teaching": {
+      "title": "Connection limits beyond CPU",
+      "why": "A service can run out of a scarce resource while processors remain idle.",
+      "example": "Each outbound socket consumes resources such as a file descriptor. A pool leak can exhaust those resources while CPU remains low.",
+      "level": 2
+    }
+  },
+  {
+    "id": "k8s-kubectl-basics",
+    "deck": "kubernetes",
+    "kind": "walkthrough",
+    "prompt": "Explain kubectl contexts and namespaces, list pods, read wide output, describe one pod, and inspect recent logs.",
+    "answer": "A kubectl context chooses a cluster and credentials plus an optional default namespace. Start by checking the context and selecting a namespace. Use get for an inventory, describe for details and events, and logs for application output.",
+    "fixture": null,
+    "allowed_commands": [
+      "kubectl"
+    ],
+    "checks": null,
+    "keyword_groups": [],
+    "minimum_groups": null,
+    "teaching": {
+      "title": "kubectl: your first investigation",
+      "why": "Build an investigation from one observation at a time while keeping the cluster and namespace explicit.",
+      "example": "The command examples below use prepared output from an imaginary practice namespace. They do not connect to or modify your cluster.",
+      "level": 2,
+      "steps": [
+        {
+          "title": "Check which cluster you are addressing",
+          "explanation": "A context chooses a cluster, user credentials, and optionally a default namespace. Always identify it before interpreting cluster output. Here we use a sample context called sre-practice.",
+          "commands": [
+            "kubectl config current-context"
+          ],
+          "example": "```text\nsre-practice\n```",
+          "goal": "Explain what a context selects and why checking it comes before an investigation."
+        },
+        {
+          "title": "List pods in one namespace",
+          "explanation": "`get pods` produces a compact inventory. `-n practice` explicitly selects the namespace. READY compares ready containers with the pod total; STATUS is a summary, and RESTARTS deserves context.",
+          "commands": [
+            "kubectl get pods -n practice"
+          ],
+          "example": "```text\nNAME        READY STATUS  RESTARTS AGE\nweb-7c9d    1/1   Running 0        10m\nworker-2ab  0/1   Pending 0        2m\n```",
+          "goal": "Explain namespace selection and identify which sample pod needs investigation."
+        },
+        {
+          "title": "Add placement information",
+          "explanation": "Keep the same inventory and add `-o wide`. This adds columns such as IP and NODE. It changes the output, not where pods run.",
+          "commands": [
+            "kubectl get pods -n practice -o wide"
+          ],
+          "example": "```text\nNAME        READY STATUS  IP           NODE\nweb-7c9d    1/1   Running 10.42.0.12   node-a\nworker-2ab  0/1   Pending <none>       <none>\n```",
+          "goal": "Explain what -o wide adds and why a Pending pod might have no node yet."
+        },
+        {
+          "title": "Describe one pod and read events",
+          "explanation": "Narrow from an inventory to one object. `describe` includes details and recent events. Read the event reason and message as evidence before choosing a fix.",
+          "commands": [
+            "kubectl describe pod worker-2ab -n practice"
+          ],
+          "example": "```text\nName: worker-2ab\nNamespace: practice\nStatus: Pending\nEvents:\n  Warning FailedScheduling  0/2 nodes are available: insufficient cpu.\n```",
+          "goal": "Explain what the scheduler event says, and distinguish insufficient schedulable CPU from proof of high CPU usage."
+        },
+        {
+          "title": "Read recent application logs",
+          "explanation": "For a running container, `logs` retrieves its output. `--tail=20` limits the lines returned. Logs describe application behavior; scheduler events describe placement. This example has one container.",
+          "commands": [
+            "kubectl logs web-7c9d -n practice --tail=20"
+          ],
+          "example": "```text\nINFO listening on :8080\nINFO GET /health 200\nERROR database request timed out\n```",
+          "goal": "Explain the difference between logs and describe/events, and identify the evidence in the sample without assuming its root cause."
+        }
+      ]
+    }
+  },
+  {
+    "id": "k8s-first-loop",
+    "deck": "kubernetes",
+    "kind": "recall",
+    "prompt": "A Pod is failing. What are your first three kubectl operations, and what does each tell you?",
+    "answer": "`get pod -o wide` shows placement/status; `describe pod` shows state, conditions, and events; `logs` shows application output. Use `logs --previous` after a crash.",
+    "keyword_groups": [
+      [
+        "get pod"
+      ],
+      [
+        "describe"
+      ],
+      [
+        "logs"
+      ],
+      [
+        "status",
+        "placement",
+        "node"
+      ],
+      [
+        "events",
+        "condition"
+      ],
+      [
+        "output",
+        "application"
+      ]
+    ],
+    "minimum_groups": 5,
+    "teaching": {
+      "title": "Your first Kubernetes investigation",
+      "why": "Object state, events and application logs provide different evidence.",
+      "example": "For a restarting pod, get shows its status, describe shows lifecycle events, and logs --previous can expose the last crashed container\u2019s output.",
+      "level": 2
+    }
+  },
+  {
+    "id": "k8s-pending",
+    "deck": "kubernetes",
+    "kind": "recall",
+    "prompt": "A Pod stays Pending. Name at least five scheduling or provisioning causes.",
+    "answer": "Insufficient resources, taints/tolerations, affinity, topology constraints, unbound volumes, quotas, or unavailable nodes. `describe pod` usually exposes the scheduler reason.",
+    "keyword_groups": [
+      [
+        "resource",
+        "cpu",
+        "memory"
+      ],
+      [
+        "taint",
+        "toleration"
+      ],
+      [
+        "affinity"
+      ],
+      [
+        "topology"
+      ],
+      [
+        "volume",
+        "pvc",
+        "storage"
+      ],
+      [
+        "quota"
+      ],
+      [
+        "node"
+      ]
+    ],
+    "minimum_groups": 5,
+    "teaching": {
+      "title": "What Pending means",
+      "why": "A pod that has not started may be waiting on placement or storage rather than failing application code.",
+      "example": "A pod requests more memory than any eligible node has available. The scheduler event explains the unmet request; application logs cannot help because the container never started.",
+      "level": 2
+    }
+  },
+  {
+    "id": "k8s-probes",
+    "deck": "kubernetes",
+    "kind": "recall",
+    "prompt": "Explain liveness, readiness, and startup probes without merely expanding their names.",
+    "answer": "Liveness decides restart; readiness controls traffic eligibility; startup suppresses the other probes until a slow application has initialized.",
+    "keyword_groups": [
+      [
+        "restart"
+      ],
+      [
+        "traffic",
+        "endpoint",
+        "service"
+      ],
+      [
+        "startup",
+        "initialize",
+        "initialise",
+        "slow"
+      ],
+      [
+        "suppress",
+        "disable",
+        "before"
+      ]
+    ],
+    "minimum_groups": 3,
+    "teaching": {
+      "title": "Readiness, liveness and startup",
+      "why": "Sending traffic and restarting a process are different operational decisions.",
+      "example": "An application is alive but warming a cache. Readiness can keep traffic away while it warms; liveness should not restart it just for being temporarily unready.",
+      "level": 2
+    }
+  },
+  {
+    "id": "k8s-service",
+    "deck": "kubernetes",
+    "kind": "recall",
+    "prompt": "A Service exists but reaches no Pods. What exact objects and fields do you inspect?",
+    "answer": "Compare Service selectors with Pod labels, inspect EndpointSlices, verify port/targetPort, readiness, NetworkPolicy, and the address/port the app listens on.",
+    "keyword_groups": [
+      [
+        "selector",
+        "label"
+      ],
+      [
+        "endpointslice",
+        "endpoint"
+      ],
+      [
+        "targetport",
+        "port"
+      ],
+      [
+        "readiness",
+        "ready"
+      ],
+      [
+        "networkpolicy",
+        "network policy"
+      ],
+      [
+        "listen",
+        "binding"
+      ]
+    ],
+    "minimum_groups": 5,
+    "teaching": {
+      "title": "How a Service finds its pods",
+      "why": "A Service\u2019s existence does not establish that it has healthy backends.",
+      "example": "A Service selects app=checkout but the pods have app=cart. The selector mismatch leaves the Service without the intended endpoints.",
+      "level": 2
+    }
+  },
+  {
+    "id": "k8s-resources",
+    "deck": "kubernetes",
+    "kind": "recall",
+    "prompt": "What different jobs do Kubernetes resource requests and limits perform?",
+    "answer": "Requests drive scheduling and reserved capacity. Limits constrain runtime consumption. CPU is throttled; exceeding memory limits normally causes OOM termination.",
+    "keyword_groups": [
+      [
+        "schedule",
+        "scheduling"
+      ],
+      [
+        "capacity",
+        "reserve"
+      ],
+      [
+        "limit",
+        "constrain"
+      ],
+      [
+        "throttle",
+        "cpu"
+      ],
+      [
+        "oom",
+        "memory",
+        "kill"
+      ]
+    ],
+    "minimum_groups": 4,
+    "teaching": {
+      "title": "Requests and limits",
+      "why": "Scheduling capacity and runtime enforcement happen at different boundaries.",
+      "example": "A request helps the scheduler choose a node. A CPU limit can throttle a running container; a memory limit can lead to OOM termination when memory use crosses the boundary.",
+      "level": 2
+    }
+  },
+  {
+    "id": "cloud-compute",
+    "deck": "cloud",
+    "kind": "recall",
+    "prompt": "Map virtual machines and managed Kubernetes across AWS, GCP, and Azure.",
+    "answer": "VMs: EC2, Compute Engine, Azure Virtual Machines. Kubernetes: EKS, GKE, AKS.",
+    "keyword_groups": [
+      [
+        "ec2"
+      ],
+      [
+        "compute engine"
+      ],
+      [
+        "azure virtual",
+        "azure vm"
+      ],
+      [
+        "eks"
+      ],
+      [
+        "gke"
+      ],
+      [
+        "aks"
+      ]
+    ],
+    "minimum_groups": 6,
+    "teaching": {
+      "title": "Translate compute concepts across clouds",
+      "why": "Provider names change more often than the underlying compute model.",
+      "example": "A team running VMs on AWS EC2 is using the same broad category as Compute Engine on GCP. A managed Kubernetes offering moves some cluster operations to the provider.",
+      "level": 3
+    }
+  },
+  {
+    "id": "cloud-storage",
+    "deck": "cloud",
+    "kind": "recall",
+    "prompt": "Map object, block, and shared filesystem storage across AWS, GCP, and Azure.",
+    "answer": "Object: S3 / Cloud Storage / Blob. Block: EBS / Persistent Disk or Hyperdisk / Managed Disks. Shared files: EFS / Filestore / Azure Files.",
+    "keyword_groups": [
+      [
+        "s3"
+      ],
+      [
+        "cloud storage"
+      ],
+      [
+        "blob"
+      ],
+      [
+        "ebs"
+      ],
+      [
+        "persistent disk",
+        "hyperdisk"
+      ],
+      [
+        "managed disk"
+      ],
+      [
+        "efs"
+      ],
+      [
+        "filestore"
+      ],
+      [
+        "azure files"
+      ]
+    ],
+    "minimum_groups": 7,
+    "teaching": {
+      "title": "Choose the right storage category",
+      "why": "Objects, block devices and shared filesystems have different access and failure behavior.",
+      "example": "User-uploaded photos fit object storage. A VM filesystem normally sits on block storage. Several machines sharing filesystem paths may need a shared filesystem service.",
+      "level": 3
+    }
+  },
+  {
+    "id": "sre-slos",
+    "deck": "sre",
+    "kind": "recall",
+    "prompt": "Explain SLI, SLO, SLA, and error budget as one connected system.",
+    "answer": "The SLI measures reliability, the SLO sets its target, the SLA is an external commitment, and the error budget is the unreliability the SLO permits.",
+    "keyword_groups": [
+      [
+        "sli",
+        "measure"
+      ],
+      [
+        "slo",
+        "target"
+      ],
+      [
+        "sla",
+        "commit",
+        "contract"
+      ],
+      [
+        "budget",
+        "unreliability",
+        "failure"
+      ]
+    ],
+    "minimum_groups": 4,
+    "teaching": {
+      "title": "Connect measurements to reliability goals",
+      "why": "A useful reliability goal starts with an observable user experience.",
+      "example": "The proportion of successful checkout requests is an SLI. A target of 99.9% successful requests is an SLO. The remaining 0.1% is the allowed unsuccessful share for that objective.",
+      "level": 3
+    }
+  },
+  {
+    "id": "sre-page",
+    "deck": "sre",
+    "kind": "recall",
+    "prompt": "What deserves to wake an SRE at 3 AM?",
+    "answer": "A user-impacting or SLO-threatening condition that requires timely human action. A page must be actionable, not merely unusual.",
+    "keyword_groups": [
+      [
+        "user",
+        "customer",
+        "impact"
+      ],
+      [
+        "slo",
+        "error budget"
+      ],
+      [
+        "action",
+        "actionable"
+      ],
+      [
+        "urgent",
+        "timely",
+        "now"
+      ]
+    ],
+    "minimum_groups": 3,
+    "teaching": {
+      "title": "Make pages actionable",
+      "why": "An alert interrupts a person because timely action can help users.",
+      "example": "A brief CPU spike with no impact may belong on a dashboard. Sustained checkout failures consuming the error budget may need an on-call response.",
+      "level": 3
+    }
+  },
+  {
+    "id": "sre-incident-update",
+    "deck": "sre",
+    "kind": "recall",
+    "prompt": "Give the minimum useful incident status update.",
+    "answer": "Customer impact, affected systems, confirmed facts, current mitigation, and next update time. Clearly separate hypotheses from evidence.",
+    "keyword_groups": [
+      [
+        "impact",
+        "customer",
+        "user"
+      ],
+      [
+        "affected",
+        "system",
+        "service"
+      ],
+      [
+        "fact",
+        "evidence",
+        "confirmed"
+      ],
+      [
+        "mitigation",
+        "action"
+      ],
+      [
+        "next update",
+        "update time"
+      ],
+      [
+        "hypothesis",
+        "theory"
+      ]
+    ],
+    "minimum_groups": 5,
+    "teaching": {
+      "title": "Communicate during an incident",
+      "why": "Other responders and stakeholders need shared facts while diagnosis is incomplete.",
+      "example": "A useful update says: checkout errors affect 20% of requests, rollback is underway, recovery is not confirmed, and the next update is in ten minutes.",
+      "level": 3
+    }
+  },
+  {
+    "id": "observability-red-use",
+    "deck": "observability",
+    "kind": "recall",
+    "prompt": "When do you use RED versus USE, and what does each acronym contain?",
+    "answer": "RED describes services: Rate, Errors, Duration. USE describes resources: Utilization, Saturation, Errors.",
+    "keyword_groups": [
+      [
+        "rate"
+      ],
+      [
+        "duration",
+        "latency"
+      ],
+      [
+        "utilization"
+      ],
+      [
+        "saturation"
+      ],
+      [
+        "service"
+      ],
+      [
+        "resource",
+        "infrastructure"
+      ]
+    ],
+    "minimum_groups": 5,
+    "teaching": {
+      "title": "Choose signals for services and resources",
+      "why": "Metrics should answer an operational question.",
+      "example": "For a checkout endpoint, look at request rate, errors and duration. For its connection pool, look at utilization, waiting work and errors.",
+      "level": 3
+    }
+  },
+  {
+    "id": "observability-cardinality",
+    "deck": "observability",
+    "kind": "recall",
+    "prompt": "Why should request IDs usually not be metric labels?",
+    "answer": "They create extremely high-cardinality time series, increasing storage, memory, query cost, and cost. Keep request IDs in logs or traces.",
+    "keyword_groups": [
+      [
+        "cardinality"
+      ],
+      [
+        "series",
+        "timeseries",
+        "time series"
+      ],
+      [
+        "cost",
+        "memory",
+        "storage"
+      ],
+      [
+        "log",
+        "trace"
+      ]
+    ],
+    "minimum_groups": 3,
+    "teaching": {
+      "title": "Why metric labels can become expensive",
+      "why": "Every distinct label combination can create another time series.",
+      "example": "A status-class label has a small set of values. A request-id label adds a new value for nearly every request, so put that identifier in logs or traces instead.",
+      "level": 3
+    }
+  },
+  {
+    "id": "terraform-state",
+    "deck": "iac",
+    "kind": "recall",
+    "prompt": "Why is Terraform state both critical and sensitive?",
+    "answer": "It maps declared resources to real infrastructure and can contain secrets. Protect remote state with encryption, access control, locking, and versioning.",
+    "keyword_groups": [
+      [
+        "map",
+        "mapping",
+        "resource"
+      ],
+      [
+        "secret",
+        "sensitive"
+      ],
+      [
+        "encrypt"
+      ],
+      [
+        "access",
+        "permission"
+      ],
+      [
+        "lock"
+      ],
+      [
+        "version"
+      ]
+    ],
+    "minimum_groups": 4,
+    "teaching": {
+      "title": "Treat infrastructure state as operational data",
+      "why": "Declarative configuration still needs a mapping to actual resources.",
+      "example": "Terraform state links a configured database to the provider\u2019s concrete resource ID. Losing or concurrently modifying that mapping can make later changes unsafe.",
+      "level": 4
+    }
+  },
+  {
+    "id": "container-isolation",
+    "deck": "containers",
+    "kind": "recall",
+    "prompt": "Name the Linux primitives behind container isolation and resource control.",
+    "answer": "Namespaces isolate views of PIDs, networking, mounts, users, IPC, and hostnames. Cgroups account for and constrain CPU, memory, and I/O.",
+    "keyword_groups": [
+      [
+        "namespace"
+      ],
+      [
+        "cgroup"
+      ],
+      [
+        "pid",
+        "network",
+        "mount",
+        "user"
+      ],
+      [
+        "cpu",
+        "memory",
+        "i/o",
+        "io"
+      ],
+      [
+        "isolate"
+      ],
+      [
+        "limit",
+        "constrain",
+        "control"
+      ]
+    ],
+    "minimum_groups": 4,
+    "teaching": {
+      "title": "What isolates a container",
+      "why": "Containers share a kernel while receiving constrained views and resource budgets.",
+      "example": "A PID namespace changes which processes a container sees. A cgroup can constrain how much memory it consumes. These primitives solve different parts of isolation.",
+      "level": 2
+    }
+  },
+  {
+    "id": "sre-toil",
+    "deck": "sre",
+    "kind": "recall",
+    "prompt": "A manual deployment takes 15 minutes and happens daily. How do you decide whether it is toil worth automating?",
+    "answer": "Look for repetitive, manual, automatable work that scales with service growth and creates no enduring value. Measure time, error risk and frequency; compare automation cost and maintenance with the expected savings.",
+    "keyword_groups": [
+      [
+        "repetitive",
+        "repeat"
+      ],
+      [
+        "automat"
+      ],
+      [
+        "risk",
+        "error"
+      ],
+      [
+        "cost",
+        "time",
+        "frequency"
+      ]
+    ],
+    "minimum_groups": 3,
+    "teaching": {
+      "title": "Recognize work worth automating",
+      "why": "Operations work should improve the system rather than grow endlessly with it.",
+      "example": "A manual restart performed after every deployment is repetitive work. Record its frequency and failure risk, then compare a robust fix with the cost of continuing the ritual.",
+      "level": 3
+    }
+  },
+  {
+    "id": "sre-burn",
+    "deck": "sre",
+    "kind": "recall",
+    "prompt": "A service has a monthly availability SLO. Why can a short burst of failures deserve a page even when the monthly percentage still looks healthy?",
+    "answer": "A fast error-budget burn can consume the remaining budget before the monthly aggregate looks bad. Use short and long burn-rate windows together to catch sustained rapid consumption while reducing noise.",
+    "keyword_groups": [
+      [
+        "budget"
+      ],
+      [
+        "burn",
+        "consume",
+        "consumption"
+      ],
+      [
+        "window"
+      ],
+      [
+        "short",
+        "long"
+      ]
+    ],
+    "minimum_groups": 3,
+    "teaching": {
+      "title": "Error-budget burn rate",
+      "why": "A monthly aggregate can hide a problem that is consuming reliability allowance very quickly.",
+      "example": "If failures occur at ten times the allowed rate, the budget is burning much faster than the calendar. Multiple windows help distinguish a brief spike from sustained damage.",
+      "level": 4
+    }
+  },
+  {
+    "id": "sre-mitigate",
+    "deck": "sre",
+    "kind": "recall",
+    "prompt": "Customers cannot check out after a deployment. What should you prioritize before proving the exact root cause?",
+    "answer": "Reduce customer impact with a safe rollback, traffic shift or feature disable. Preserve useful evidence, assign incident roles, communicate status and verify recovery with user-facing signals before deeper diagnosis.",
+    "keyword_groups": [
+      [
+        "impact",
+        "customer"
+      ],
+      [
+        "rollback",
+        "shift",
+        "disable"
+      ],
+      [
+        "evidence"
+      ],
+      [
+        "verify",
+        "recovery"
+      ]
+    ],
+    "minimum_groups": 3,
+    "teaching": {
+      "title": "Mitigate impact before finishing diagnosis",
+      "why": "The first incident priority is reducing ongoing harm to users.",
+      "example": "Checkout broke immediately after a deploy. A reversible rollback can restore service while the team preserves logs and investigates why the new version failed.",
+      "level": 3
+    }
+  },
+  {
+    "id": "delivery-canary",
+    "deck": "delivery",
+    "kind": "recall",
+    "prompt": "What makes a canary rollout useful, beyond sending a small percentage of traffic to a new version?",
+    "answer": "Compare candidate and control on user-facing error rate and latency, plus saturation and business outcomes. Define minimum observation/sample size and rollback thresholds in advance. Expand only after representative evidence.",
+    "keyword_groups": [
+      [
+        "control",
+        "compare",
+        "baseline"
+      ],
+      [
+        "error",
+        "latency"
+      ],
+      [
+        "rollback",
+        "threshold"
+      ],
+      [
+        "sample",
+        "observation",
+        "representative"
+      ]
+    ],
+    "minimum_groups": 3,
+    "teaching": {
+      "title": "Use a canary as an experiment",
+      "why": "A small rollout needs a comparison and stop conditions to provide useful evidence.",
+      "example": "Send a small traffic share to the candidate and compare errors and latency with the control. Roll back if a predefined threshold is crossed.",
+      "level": 3
+    }
+  },
+  {
+    "id": "delivery-schema",
+    "deck": "delivery",
+    "kind": "recall",
+    "prompt": "You must rename a database column while old and new application versions overlap. Describe a safe rollout pattern.",
+    "answer": "Use expand and contract: add the new representation, deploy compatible readers/writers, backfill and verify, switch usage, then remove the old column only after old code and rollback dependencies are gone.",
+    "keyword_groups": [
+      [
+        "expand",
+        "add"
+      ],
+      [
+        "backfill"
+      ],
+      [
+        "compatib",
+        "old"
+      ],
+      [
+        "remove",
+        "contract"
+      ]
+    ],
+    "minimum_groups": 3,
+    "teaching": {
+      "title": "Evolve schemas with overlapping versions",
+      "why": "Old and new application versions often share a database during deployment and rollback.",
+      "example": "Add the new column first, support both representations, backfill and verify, then switch readers. Remove the old column only after old code no longer needs it.",
+      "level": 4
+    }
+  },
+  {
+    "id": "distributed-retry",
+    "deck": "distributed",
+    "kind": "recall",
+    "prompt": "A dependency slows down. Why can automatic retries make the incident worse, and what limits should you add?",
+    "answer": "Retries amplify load on an already overloaded dependency. Use request deadlines, a retry budget, capped exponential backoff with jitter, and idempotency for operations with side effects. Avoid retrying every layer independently.",
+    "keyword_groups": [
+      [
+        "load",
+        "amplif"
+      ],
+      [
+        "deadline",
+        "timeout"
+      ],
+      [
+        "budget",
+        "cap"
+      ],
+      [
+        "jitter",
+        "backoff"
+      ],
+      [
+        "idempoten"
+      ]
+    ],
+    "minimum_groups": 4,
+    "teaching": {
+      "title": "Retries can amplify an outage",
+      "why": "Trying again creates additional work for a dependency that may already be overloaded.",
+      "example": "If each incoming request triggers three retries, one failing call can create four attempts. Cap attempts and total deadline, and spread retries with backoff and jitter.",
+      "level": 4
+    }
+  },
+  {
+    "id": "distributed-backpressure",
+    "deck": "distributed",
+    "kind": "recall",
+    "prompt": "A queue grows continuously while consumers are healthy. What do you measure before adding consumers?",
+    "answer": "Compare arrival and processing rates, oldest-message age, downstream capacity, per-message latency and failures. Add backpressure or admission control if the dependency is saturated; more consumers can worsen overload.",
+    "keyword_groups": [
+      [
+        "rate",
+        "arrival"
+      ],
+      [
+        "age"
+      ],
+      [
+        "downstream",
+        "dependency"
+      ],
+      [
+        "backpressure",
+        "admission",
+        "saturat"
+      ]
+    ],
+    "minimum_groups": 3,
+    "teaching": {
+      "title": "Control work entering an overloaded system",
+      "why": "A growing queue is accumulated waiting time, not free capacity.",
+      "example": "A queue receives 100 jobs per second but completes 80. It adds 20 waiting jobs per second until arrivals slow or processing capacity improves.",
+      "level": 4
+    }
+  },
+  {
+    "id": "distributed-idempotency",
+    "deck": "distributed",
+    "kind": "recall",
+    "prompt": "A payment request times out after reaching the server. Why is an immediate blind retry unsafe?",
+    "answer": "The server may have committed the operation even though the response was lost. Use an idempotency key with durable deduplication or query operation status; a timeout does not prove that no side effect occurred.",
+    "keyword_groups": [
+      [
+        "committed",
+        "completed",
+        "side effect"
+      ],
+      [
+        "idempotency",
+        "dedup"
+      ],
+      [
+        "status",
+        "lost",
+        "response"
+      ]
+    ],
+    "minimum_groups": 2,
+    "teaching": {
+      "title": "A timeout does not mean nothing happened",
+      "why": "The operation may have committed even when its response never arrived.",
+      "example": "A payment succeeds on the server but the response is lost. Retrying with the same durable idempotency key lets the server return the original result instead of charging again.",
+      "level": 4
+    }
+  },
+  {
+    "id": "observability-p99",
+    "deck": "observability",
+    "kind": "recall",
+    "prompt": "Average latency is flat but p99 rises sharply. What does that tell you, and where would you look?",
+    "answer": "A minority of requests is slower while the average hides it. Segment by route, dependency, instance and customer; inspect traces, queueing, lock contention, connection pools and saturation. Correlate with deploys and traffic changes.",
+    "keyword_groups": [
+      [
+        "minority",
+        "tail",
+        "percent"
+      ],
+      [
+        "route",
+        "segment",
+        "instance"
+      ],
+      [
+        "trace"
+      ],
+      [
+        "queue",
+        "lock",
+        "pool",
+        "saturat"
+      ]
+    ],
+    "minimum_groups": 3,
+    "teaching": {
+      "title": "Investigate the slow tail",
+      "why": "Averages can hide a bad experience for a minority of requests.",
+      "example": "Most requests take 50 ms while one in a hundred waits seconds for a pool connection. The average may look acceptable while tail latency reveals the waiting problem.",
+      "level": 3
+    }
+  },
+  {
+    "id": "network-timeout-budget",
+    "deck": "networking",
+    "kind": "recall",
+    "prompt": "A frontend has a two-second request deadline and calls two downstream services sequentially. How should downstream timeouts fit that deadline?",
+    "answer": "Budget time across both calls, network overhead and response processing. Propagate the remaining deadline, bound retries inside that budget and cancel work when the caller gives up. Two separate two-second timeouts can exceed the user deadline.",
+    "keyword_groups": [
+      [
+        "budget",
+        "remaining"
+      ],
+      [
+        "propagat",
+        "deadline"
+      ],
+      [
+        "retr"
+      ],
+      [
+        "cancel"
+      ]
+    ],
+    "minimum_groups": 3,
+    "teaching": {
+      "title": "Share an end-to-end deadline",
+      "why": "Independent downstream timeouts can accidentally exceed the user\u2019s entire request budget.",
+      "example": "A request has two seconds total. If its first call consumes 1.5 seconds, the second call has less than half a second after allowing time to finish the response.",
+      "level": 2
+    }
+  },
+  {
+    "id": "data-rpo-rto",
+    "deck": "data",
+    "kind": "recall",
+    "prompt": "How do RPO and RTO change a backup and recovery plan?",
+    "answer": "RPO bounds acceptable data loss measured in time; RTO bounds acceptable recovery duration. Choose backup/replication frequency and restore procedures to meet both, then measure an actual restore including validation and dependencies.",
+    "keyword_groups": [
+      [
+        "loss"
+      ],
+      [
+        "duration",
+        "time",
+        "recovery"
+      ],
+      [
+        "restore",
+        "test"
+      ],
+      [
+        "frequen",
+        "replicat"
+      ]
+    ],
+    "minimum_groups": 3,
+    "teaching": {
+      "title": "Define recovery objectives",
+      "why": "Data freshness and restoration speed are separate requirements.",
+      "example": "An RPO of one hour accepts at most an hour of lost changes. An RTO of thirty minutes requires usable recovery within that duration; a backup alone proves neither.",
+      "level": 4
+    }
+  },
+  {
+    "id": "data-restore-test",
+    "deck": "data",
+    "kind": "recall",
+    "prompt": "The nightly backup job says success. What evidence do you still need before trusting recovery?",
+    "answer": "Restore into an isolated environment, verify integrity and application usability, measure recovery time and data freshness, and confirm encryption keys, permissions and dependent services are recoverable too.",
+    "keyword_groups": [
+      [
+        "restore"
+      ],
+      [
+        "integrity",
+        "verif"
+      ],
+      [
+        "time",
+        "freshness"
+      ],
+      [
+        "key",
+        "permission",
+        "depend"
+      ]
+    ],
+    "minimum_groups": 3,
+    "teaching": {
+      "title": "Prove that recovery works",
+      "why": "A successful backup job only proves that the backup job reported success.",
+      "example": "Restore a backup into an isolated environment, verify records and application behavior, and measure how long it takes. Also verify that the required decryption keys are available.",
+      "level": 4
+    }
+  },
+  {
+    "id": "sre-capacity",
+    "deck": "sre",
+    "kind": "recall",
+    "prompt": "CPU is only 40% but the service is overloaded. Name other saturation signals you would investigate.",
+    "answer": "Check queue depth and wait time, connection/thread pools, disk latency and IOPS, memory pressure and garbage collection, file descriptors, network limits and dependency quotas. Find the bottleneck before scaling the wrong resource.",
+    "keyword_groups": [
+      [
+        "queue"
+      ],
+      [
+        "pool",
+        "thread"
+      ],
+      [
+        "disk",
+        "iops"
+      ],
+      [
+        "memory",
+        "gc",
+        "garbage"
+      ],
+      [
+        "depend",
+        "quota",
+        "network"
+      ]
+    ],
+    "minimum_groups": 4,
+    "teaching": {
+      "title": "Find the actual bottleneck",
+      "why": "Adding CPU will not fix a resource that constrains throughput elsewhere.",
+      "example": "Requests wait on a full database connection pool while CPU is only 40%. Measure pool waits and downstream capacity before increasing application replicas.",
+      "level": 4
+    }
+  },
+  {
+    "id": "sre-postmortem",
+    "deck": "sre",
+    "kind": "recall",
+    "prompt": "What makes a postmortem produce reliability improvements instead of blame?",
+    "answer": "Explain impact and timeline, contributing technical and organizational conditions, what helped or hindered detection and recovery, and specific prioritized actions with owners and follow-up. Avoid treating human error as a sufficient root cause.",
+    "keyword_groups": [
+      [
+        "impact",
+        "timeline"
+      ],
+      [
+        "condition",
+        "contribut"
+      ],
+      [
+        "detect",
+        "recover"
+      ],
+      [
+        "owner",
+        "action"
+      ],
+      [
+        "blame",
+        "human",
+        "system"
+      ]
+    ],
+    "minimum_groups": 4,
+    "teaching": {
+      "title": "Learn from incidents without blame",
+      "why": "A useful investigation explains the conditions that made failure possible.",
+      "example": "Instead of stopping at an operator ran the wrong command, examine ambiguous tooling, missing safeguards, detection delays and recovery options, then assign concrete improvements.",
+      "level": 3
+    }
+  }
+]

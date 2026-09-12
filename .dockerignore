@@ -1,0 +1,12 @@
+.git
+.env*
+.sre-trainer
+target
+**/__pycache__
+*.zip
+*.db
+*.db-*
+*.sqlite*
+*.pem
+*.key
+*.tar.gz

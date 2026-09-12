@@ -1,0 +1,21 @@
+services:
+  trainer:
+    build: .
+    stdin_open: true
+    tty: true
+    environment:
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      DEVDOCS_URL: ${DEVDOCS_URL:-https://devdocs.tailf93a13.ts.net}
+      SEARXNG_URL: ${SEARXNG_URL:-https://searxng.tailf93a13.ts.net}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-inception/mercury-2.5}
+    volumes:
+      - sre-progress:/data
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+
+volumes:
+  sre-progress:

@@ -1,0 +1,24 @@
+[package]
+name = "sre-trainer"
+version = "0.1.0"
+edition = "2021"
+description = "A hands-on Ratatui SRE study game with spaced repetition and real command labs"
+license = "MIT"
+
+[dependencies]
+anyhow = "1"
+chrono = { version = "0.4", features = ["serde"] }
+crossterm = "0.28"
+pulldown-cmark = { version = "0.13", default-features = false }
+ratatui = "0.29"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+shell-words = "1"
+syntect = { version = "5.3", default-features = false, features = ["default-syntaxes", "parsing", "regex-fancy"] }
+tempfile = "3"
+
+[profile.release]
+lto = "thin"
+strip = true
